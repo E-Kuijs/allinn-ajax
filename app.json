@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "ALL-INN AJAX",
+    "slug": "all-inn-ajax",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo-ajax.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/logo-ajax.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#D2001C"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.allinmedia.allinajax",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo-ajax.png",
+        "backgroundColor": "#D2001C"
+      },
+      "package": "com.allinmedia.allinajax",
+      "versionCode": 1,
+      "permissions": [
+        "NOTIFICATIONS",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ALL-INN AJAX wil toegang tot je foto's.",
+          "cameraPermission": "ALL-INN AJAX wil toegang tot je camera."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "PLAK-HIER-JE-PROJECT-ID"
+      }
+    }
+  }
+}

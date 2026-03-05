@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
   Platform, View, TouchableOpacity, Text, StyleSheet,
@@ -8,7 +8,6 @@ import {
 import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors } from '@/constants/theme';
-import { router } from 'expo-router';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -179,6 +178,7 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => <IconSymbol size={26} name="person.fill" color={color} />,
           }}
         />
+        <Tabs.Screen name="welcome" options={{ href: null }} />
       </Tabs>
       <FloatingChat />
     </View>

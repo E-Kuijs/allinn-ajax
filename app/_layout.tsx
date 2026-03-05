@@ -3,8 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
-  initialRouteName: '(tabs)',
+  initialRouteName: 'welcome',
 };
 
 export default function RootLayout() {

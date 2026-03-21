@@ -1,34 +1,45 @@
 {
   "expo": {
+    "owner": "all-inn-media-ajax",
     "name": "ALL-INN AJAX",
     "slug": "all-inn-ajax",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo-ajax.png",
+    "icon": "./assets/images/logo-ajax-square.png",
     "userInterfaceStyle": "light",
+    "scheme": "ajaxnieuws",
     "splash": {
       "image": "./assets/images/logo-ajax.png",
       "resizeMode": "contain",
-      "backgroundColor": "#D2001C"
+      "backgroundColor": "#d2001c"
     },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.allinmedia.allinajax",
-      "buildNumber": "1"
+      "buildNumber": "13",
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
+        "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/logo-ajax.png",
-        "backgroundColor": "#D2001C"
+        "foregroundImage": "./assets/images/logo-ajax-square.png",
+        "backgroundColor": "#d2001c"
       },
+      "softwareKeyboardLayoutMode": "pan",
       "package": "com.allinmedia.allinajax",
-      "versionCode": 1,
       "permissions": [
-        "NOTIFICATIONS",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "CAMERA"
-      ]
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "versionCode": 8
     },
     "web": {
       "bundler": "metro"
@@ -41,12 +52,29 @@
           "photosPermission": "ALL-INN AJAX wil toegang tot je foto's.",
           "cameraPermission": "ALL-INN AJAX wil toegang tot je camera."
         }
-      ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ALL-INN AJAX wil toegang tot je camera om QR-codes te scannen."
+        }
+      ],
+      "expo-notifications",
+      "expo-speech-recognition",
+      "expo-audio",
+      "expo-asset"
     ],
     "extra": {
       "eas": {
-        "projectId": "91790cd9-789d-4765-afbc-758db8f054b6"
-      }
+        "projectId": "02ad4d91-5fe2-443f-be18-02f22c6b19e7"
+      },
+      "router": {}
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/02ad4d91-5fe2-443f-be18-02f22c6b19e7"
     }
   }
 }

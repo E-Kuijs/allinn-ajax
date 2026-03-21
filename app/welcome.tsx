@@ -1,331 +1,298 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  Image, ScrollView, Dimensions, TextInput,
-  KeyboardAvoidingView, Platform, Alert
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { router } from 'expo-router';
+
 import { Ajax } from '@/constants/theme';
+import { useAppContext } from '@/src/core/app-context';
+import { supabaseRuntimeDebug } from '@/src/core/supabaseClient';
 
-const { width: W } = Dimensions.get('window');
-
-type Screen = 'landing' | 'login' | 'register';
+type Mode = 'landing' | 'login' | 'register';
 
 export default function WelcomeScreen() {
-  const [screen, setScreen] = useState<Screen>('landing');
-  const [agreed, setAgreed] = useState(false);
-  const [selectedDuration, setSelectedDuration] = useState('12m');
+  const { loading, session, signIn, signUp, resendSignupConfirmation, content } = useAppContext();
 
-  // Login state
+  const [mode, setMode] = useState<Mode>('landing');
+
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
-  const [loginLoading, setLoginLoading] = useState(false);
+  const [showLoginPass, setShowLoginPass] = useState(false);
 
-  // Register state
   const [regName, setRegName] = useState('');
   const [regUsername, setRegUsername] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regPassword2, setRegPassword2] = useState('');
-  const [regLoading, setRegLoading] = useState(false);
-  const [isPremium, setIsPremium] = useState(false);
+  const [showRegPass, setShowRegPass] = useState(false);
+  const [showRegPass2, setShowRegPass2] = useState(false);
+  const [agreed, setAgreed] = useState(false);
 
-  const handleLogin = () => {
-    if (!loginEmail.trim() || !loginPassword.trim()) {
-      Alert.alert('Vul alle velden in', 'E-mail en wachtwoord zijn verplicht.');
-      return;
-    }
-    setLoginLoading(true);
-    setTimeout(() => {
-      setLoginLoading(false);
-      router.replace('/(tabs)' as any);
-    }, 1200);
-  };
+  const [busy, setBusy] = useState(false);
 
-  const handleRegister = () => {
-    if (!regName.trim() || !regEmail.trim() || !regPassword.trim() || !regUsername.trim()) {
-      Alert.alert('Vul alle velden in', 'Alle velden zijn verplicht.');
-      return;
+  useEffect(() => {
+    if (session) {
+      router.replace('/(tabs)/welcome' as any);
     }
-    if (regPassword !== regPassword2) {
-      Alert.alert('Wachtwoorden komen niet overeen');
-      return;
-    }
-    if (!agreed) {
-      Alert.alert('Akkoord vereist', 'Ga akkoord met de gebruiksvoorwaarden.');
-      return;
-    }
-    setRegLoading(true);
-    setTimeout(() => {
-      setRegLoading(false);
-      Alert.alert(
-        isPremium ? '🏆 Premium account aangemaakt!' : '✅ Account aangemaakt!',
-        isPremium
-          ? 'Welkom bij ALL-INN AJAX Premium! Je hebt toegang tot alle functies.'
-          : 'Welkom! Je hebt een gratis account. Upgrade naar Premium voor alle functies.',
-        [{ text: 'Aan de slag!', onPress: () => router.replace('/(tabs)' as any) }]
-      );
-    }, 1400);
-  };
+  }, [session]);
 
-  // === LANDING ===
-  if (screen === 'landing') {
+  if (loading) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroBg}>
-          <View style={styles.glowRed} />
-          <View style={styles.glowGold} />
-          <Image
-            source={require('@/assets/images/logo-ajax.png')}
-            style={styles.ajaxLogoTop}
-            resizeMode="contain"
-          />
-          <Image source={require('@/assets/images/logo-media.png')} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.heroTagline}>Het ultieme platform voor Ajax supporters</Text>
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" color={Ajax.red} />
+      </View>
+    );
+  }
+
+  const onLogin = async () => {
+    if (!loginEmail.trim() || !loginPassword.trim()) {
+      Alert.alert('Vul alles in', 'E-mail en wachtwoord zijn verplicht.');
+      return;
+    }
+
+    setBusy(true);
+    const result = await signIn({ email: loginEmail, password: loginPassword });
+    setBusy(false);
+
+    if (!result.ok) {
+      Alert.alert('Inloggen mislukt', result.message ?? 'Controleer je gegevens.');
+      return;
+    }
+
+    router.replace('/(tabs)/welcome' as any);
+  };
+
+  const onRegister = async () => {
+    if (!regName.trim() || !regUsername.trim() || !regEmail.trim() || !regPassword.trim()) {
+      Alert.alert('Vul alles in', 'Alle velden zijn verplicht.');
+      return;
+    }
+
+    if (regPassword !== regPassword2) {
+      Alert.alert('Controle', 'Wachtwoorden komen niet overeen.');
+      return;
+    }
+
+    if (!agreed) {
+      Alert.alert('Akkoord vereist', 'Je moet akkoord gaan met de gebruiksvoorwaarden.');
+      return;
+    }
+
+    setBusy(true);
+    const result = await signUp({
+      email: regEmail,
+      password: regPassword,
+      displayName: regName,
+      username: regUsername.startsWith('@') ? regUsername : `@${regUsername}`,
+      acceptedTermsVersion: content.termsVersion,
+    });
+    setBusy(false);
+
+    if (!result.ok) {
+      Alert.alert('Registratie mislukt', result.message ?? 'Probeer opnieuw.');
+      return;
+    }
+
+    Alert.alert('Gelukt', result.message ?? 'Account aangemaakt.', [
+      {
+        text: 'OK',
+        onPress: () => setMode('login'),
+      },
+    ]);
+  };
+
+  const onResendConfirmation = async () => {
+    const email = mode === 'login' ? loginEmail : regEmail;
+    if (!email.trim()) {
+      Alert.alert('E-mail nodig', 'Vul eerst het e-mailadres in waarvoor je de bevestigingsmail opnieuw wilt sturen.');
+      return;
+    }
+
+    setBusy(true);
+    const result = await resendSignupConfirmation(email);
+    setBusy(false);
+
+    if (!result.ok) {
+      Alert.alert('Opnieuw versturen mislukt', result.message ?? 'Probeer opnieuw.');
+      return;
+    }
+
+    Alert.alert('Bevestigingsmail verstuurd', result.message ?? 'Controleer ook je spammap.');
+  };
+
+  const bannerSource = content.welcomeBannerUrl
+    ? { uri: content.welcomeBannerUrl }
+    : require('@/assets/images/logo-media.png');
+
+  const cornerSource = content.welcomeCornerImageUrl
+    ? { uri: content.welcomeCornerImageUrl }
+    : require('@/assets/images/logo-ajax.png');
+
+  if (mode === 'landing') {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <View style={styles.hero}>
+          <Image source={bannerSource} style={styles.banner} resizeMode="contain" />
+          <Text style={styles.title}>{content.welcomeTitle}</Text>
+          <Text style={styles.subtitle}>{content.welcomeText}</Text>
+          <Image source={cornerSource} style={styles.cornerImage} resizeMode="cover" />
         </View>
 
-        <View style={styles.welcomeCard}>
-          <Image source={require('@/assets/images/logo-ajax.png')} style={styles.ajaxLogo} resizeMode="contain" />
-          <Text style={styles.welcomeTitle}>Welkom bij ALL-INN AJAX</Text>
-          <Text style={styles.welcomeText}>
-            Dé plek voor echte Ajax fans. Blijf op de hoogte van het laatste nieuws,
-            handel op de marktplaats, chat met medesupporters en mis geen enkele wedstrijd.
-          </Text>
+        <View style={styles.card}>
+          <Text style={styles.cardHeading}>Wat je krijgt</Text>
+          <Text style={styles.item}>📰 Ajax nieuws en updates</Text>
+          <Text style={styles.item}>💬 Fan chat met moderatie</Text>
+          <Text style={styles.item}>🏷️ Marktplaats voor Ajax merchandise</Text>
+          <Text style={styles.item}>⚽ Wedstrijden + agenda + route</Text>
         </View>
 
-        {[
-          { icon: '📰', title: 'Ajax Nieuws', sub: 'Altijd als eerste op de hoogte' },
-          { icon: '🏷️', title: 'Marktplaats', sub: 'Koop en verkoop Ajax merchandise' },
-          { icon: '💬', title: 'Fan Chat', sub: 'Praat met duizenden supporters' },
-          { icon: '⚽', title: 'Wedstrijden', sub: 'Live scores, stats en uitslagen' },
-        ].map((f, i) => (
-          <View key={i} style={styles.featureRow}>
-            <View style={styles.featureIcon}><Text style={styles.featureIconText}>{f.icon}</Text></View>
-            <View style={styles.featureInfo}>
-              <Text style={styles.featureTitle}>{f.title}</Text>
-              <Text style={styles.featureSub}>{f.sub}</Text>
-            </View>
-            <Text style={styles.featureChevron}>›</Text>
-          </View>
-        ))}
-
-        {/* Early bird banner */}
-        <View style={styles.earlyBird}>
-          <Text style={styles.earlyBirdEmoji}>🔥</Text>
-          <View style={styles.earlyBirdInfo}>
-            <Text style={styles.earlyBirdTitle}>Early Bird — Eerste 500 leden!</Text>
-            <Text style={styles.earlyBirdSub}>Registreer nu en krijg 50% korting op Premium</Text>
-          </View>
-          <View style={styles.earlyBirdBadge}>
-            <Text style={styles.earlyBirdCount}>347</Text>
-            <Text style={styles.earlyBirdLeft}>/ 500</Text>
-          </View>
-        </View>
-
-        {/* Premium banner */}
-        <View style={styles.premiumBanner}>
-          <Text style={styles.premiumIcon}>🏆</Text>
-          <View style={styles.premiumInfo}>
-            <Text style={styles.premiumTitle}>ALL-INN AJAX Premium</Text>
-            <Text style={styles.premiumSub}>Onbeperkt berichten · Live stats · Geen advertenties</Text>
-          </View>
-          <View>
-            <Text style={styles.premiumOldPrice}>€2,99/mnd</Text>
-            <Text style={styles.premiumPrice}>€1,49/mnd</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.loginBtn} onPress={() => setScreen('login')}>
-          <Text style={styles.loginBtnText}>🔑 Inloggen</Text>
+        <TouchableOpacity style={styles.primary} onPress={() => router.push('/login' as any)}>
+          <Text style={styles.primaryText}>Inloggen</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.registerBtn} onPress={() => setScreen('register')}>
-          <Text style={styles.registerBtnText}>✨ Registreren</Text>
+        <TouchableOpacity style={styles.secondary} onPress={() => setMode('register')}>
+          <Text style={styles.secondaryText}>Registreren</Text>
         </TouchableOpacity>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>ALL-INN MEDIA © 2026 · E. Kuijs</Text>
-          <Text style={styles.footerStar}>⭐⭐⭐ EST. 2026</Text>
-        </View>
       </ScrollView>
     );
   }
 
-  // === LOGIN ===
-  if (screen === 'login') {
-    return (
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.authContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-          <View style={styles.authHeader}>
-            <Image source={require('@/assets/images/logo-ajax.png')} style={styles.authLogo} resizeMode="contain" />
-            <Text style={styles.authTitle}>Inloggen</Text>
-            <Text style={styles.authSub}>Welkom terug Ajax fan!</Text>
-          </View>
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+    >
+      <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
+        <View style={styles.formHeader}>
+          <Image source={require('@/assets/images/logo-ajax.png')} style={styles.authLogo} resizeMode="contain" />
+          <Text style={styles.formTitle}>{mode === 'login' ? 'Inloggen' : 'Registreren'}</Text>
+          <Text style={styles.formSub}>Welkom terug Ajax fan</Text>
+        </View>
 
-          <View style={styles.formCard}>
-            <Text style={styles.formLabel}>E-mailadres</Text>
+        <View style={styles.debugCard}>
+          <Text style={styles.debugTitle}>Runtime Debug</Text>
+          <Text style={styles.debugLine}>URL ref: {supabaseRuntimeDebug.urlProjectRef ?? 'onbekend'}</Text>
+          <Text style={styles.debugLine}>KEY ref: {supabaseRuntimeDebug.keyProjectRef ?? 'onbekend'}</Text>
+          <Text style={styles.debugLine}>Host: {supabaseRuntimeDebug.host ?? 'onbekend'}</Text>
+        </View>
+
+        <View style={styles.card}>
+          {mode === 'register' ? (
+            <>
+              <Text style={styles.label}>Echte naam</Text>
+              <TextInput
+                style={styles.input}
+                value={regName}
+                onChangeText={setRegName}
+                placeholder="Jouw echte naam"
+                placeholderTextColor="#888"
+              />
+
+              <Text style={styles.label}>Gebruikersnaam</Text>
+              <TextInput
+                style={styles.input}
+                value={regUsername}
+                onChangeText={setRegUsername}
+                placeholder="@ajaxfan"
+                placeholderTextColor="#888"
+                autoCapitalize="none"
+              />
+            </>
+          ) : null}
+
+          <Text style={styles.label}>E-mail</Text>
+          <TextInput
+            style={styles.input}
+            value={mode === 'login' ? loginEmail : regEmail}
+            onChangeText={mode === 'login' ? setLoginEmail : setRegEmail}
+            placeholder="naam@email.nl"
+            placeholderTextColor="#888"
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          <Text style={styles.label}>Wachtwoord</Text>
+          <View style={styles.passwordRow}>
             <TextInput
-              style={styles.formInput}
-              placeholder="jouw@email.nl"
-              placeholderTextColor="#666"
-              value={loginEmail}
-              onChangeText={setLoginEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <Text style={styles.formLabel}>Wachtwoord</Text>
-            <TextInput
-              style={styles.formInput}
+              style={styles.passwordInput}
+              value={mode === 'login' ? loginPassword : regPassword}
+              onChangeText={mode === 'login' ? setLoginPassword : setRegPassword}
               placeholder="••••••••"
-              placeholderTextColor="#666"
-              value={loginPassword}
-              onChangeText={setLoginPassword}
-              secureTextEntry
+              placeholderTextColor="#888"
+              secureTextEntry={mode === 'login' ? !showLoginPass : !showRegPass}
             />
-            <TouchableOpacity style={styles.forgotBtn}>
-              <Text style={styles.forgotText}>Wachtwoord vergeten?</Text>
+            <TouchableOpacity
+              style={styles.eyeBtn}
+              onPress={() => (mode === 'login' ? setShowLoginPass((v) => !v) : setShowRegPass((v) => !v))}
+            >
+              <Text style={styles.eyeText}>👁</Text>
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={[styles.loginBtn, loginLoading && styles.btnLoading]}
-            onPress={handleLogin}
-            disabled={loginLoading}
-          >
-            <Text style={styles.loginBtnText}>{loginLoading ? '⏳ Inloggen...' : '🔑 Inloggen'}</Text>
-          </TouchableOpacity>
+          {mode === 'register' ? (
+            <>
+              <Text style={styles.label}>Herhaal wachtwoord</Text>
+              <View style={styles.passwordRow}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={regPassword2}
+                  onChangeText={setRegPassword2}
+                  placeholder="••••••••"
+                  placeholderTextColor="#888"
+                  secureTextEntry={!showRegPass2}
+                />
+                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowRegPass2((v) => !v)}>
+                  <Text style={styles.eyeText}>👁</Text>
+                </TouchableOpacity>
+              </View>
 
-          <TouchableOpacity style={styles.switchBtn} onPress={() => setScreen('register')}>
-            <Text style={styles.switchText}>Nog geen account? <Text style={styles.switchLink}>Registreer hier</Text></Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.backBtn} onPress={() => setScreen('landing')}>
-            <Text style={styles.backBtnText}>← Terug</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    );
-  }
-
-  // === REGISTREREN ===
-  return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.authContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={styles.authHeader}>
-          <Image source={require('@/assets/images/logo-ajax.png')} style={styles.authLogo} resizeMode="contain" />
-          <Text style={styles.authTitle}>Registreren</Text>
-          <Text style={styles.authSub}>Maak je ALL-INN AJAX account aan</Text>
-        </View>
-
-        {/* Early bird banner */}
-        <View style={styles.earlyBird}>
-          <Text style={styles.earlyBirdEmoji}>🔥</Text>
-          <View style={styles.earlyBirdInfo}>
-            <Text style={styles.earlyBirdTitle}>Early Bird — Eerste 500 leden!</Text>
-            <Text style={styles.earlyBirdSub}>Registreer nu en krijg 50% korting op Premium</Text>
-          </View>
-          <View style={styles.earlyBirdBadge}>
-            <Text style={styles.earlyBirdCount}>347</Text>
-            <Text style={styles.earlyBirdLeft}>/ 500</Text>
-          </View>
-        </View>
-
-        {/* Gratis vs Premium keuze */}
-        <View style={styles.planRow}>
-          <TouchableOpacity
-            style={[styles.planCard, !isPremium && styles.planCardActive]}
-            onPress={() => setIsPremium(false)}
-          >
-            <Text style={styles.planIcon}>🆓</Text>
-            <Text style={styles.planTitle}>Gratis</Text>
-            <Text style={styles.planSub}>3 berichten/dag{'\n'}Basis functies</Text>
-            <Text style={styles.planPrice}>€0</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.planCard, isPremium && styles.planCardPremium]}
-            onPress={() => setIsPremium(true)}
-          >
-            <View style={styles.planBestBadge}>
-              <Text style={styles.planBestText}>BEST DEAL</Text>
-            </View>
-            <Text style={styles.planIcon}>🏆</Text>
-            <Text style={[styles.planTitle, isPremium && styles.planTitlePremium]}>Premium</Text>
-            <Text style={[styles.planSub, isPremium && styles.planSubPremium]}>Onbeperkt alles{'\n'}Live stats · No ads</Text>
-            <Text style={styles.planOldPrice}>€2,99/mnd</Text>
-            <Text style={[styles.planPrice, isPremium && styles.planPricePremium]}>€1,49/mnd</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Abonnement duur */}
-        {isPremium && (
-          <View style={styles.durationBox}>
-            <Text style={styles.durationTitle}>Kies je abonnement</Text>
-            {[
-              { id: '3m', label: '3 maanden', priceOld: '€8,97', price: '€4,49', saving: 'Bespaar €4,48' },
-              { id: '6m', label: '6 maanden', priceOld: '€17,94', price: '€7,99', saving: 'Bespaar €9,95' },
-              { id: '12m', label: '1 jaar', priceOld: '€35,88', price: '€13,99', saving: 'Bespaar €21,89 🔥' },
-            ].map(d => (
-              <TouchableOpacity
-                key={d.id}
-                style={[styles.durationCard, selectedDuration === d.id && styles.durationCardActive]}
-                onPress={() => setSelectedDuration(d.id)}
-              >
-                <View style={styles.durationLeft}>
-                  <View style={[styles.durationRadio, selectedDuration === d.id && styles.durationRadioActive]}>
-                    {selectedDuration === d.id && <View style={styles.durationRadioDot} />}
-                  </View>
-                  <View>
-                    <Text style={styles.durationLabel}>{d.label}</Text>
-                    <Text style={styles.durationSaving}>{d.saving}</Text>
-                  </View>
+              <TouchableOpacity style={styles.termsRow} onPress={() => setAgreed((v) => !v)}>
+                <View style={[styles.checkbox, agreed && styles.checkboxActive]}>
+                  {agreed ? <Text style={styles.checkText}>✓</Text> : null}
                 </View>
-                <View style={styles.durationRight}>
-                  <Text style={styles.durationOldPrice}>{d.priceOld}</Text>
-                  <Text style={[styles.durationPrice, selectedDuration === d.id && styles.durationPriceActive]}>{d.price}</Text>
-                </View>
+                <Text style={styles.termsText}>
+                  Ik ga akkoord met de{' '}
+                  <Text style={styles.linkText} onPress={() => router.push('/legal')}>
+                    gebruiksvoorwaarden
+                  </Text>
+                </Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <View style={styles.formCard}>
-          <Text style={styles.formLabel}>Volledige naam</Text>
-          <TextInput style={styles.formInput} placeholder="Edwin Kuijs" placeholderTextColor="#666" value={regName} onChangeText={setRegName} />
-          <Text style={styles.formLabel}>Gebruikersnaam</Text>
-          <TextInput style={styles.formInput} placeholder="@ajax_fan" placeholderTextColor="#666" value={regUsername} onChangeText={setRegUsername} autoCapitalize="none" />
-          <Text style={styles.formLabel}>E-mailadres</Text>
-          <TextInput style={styles.formInput} placeholder="jouw@email.nl" placeholderTextColor="#666" value={regEmail} onChangeText={setRegEmail} keyboardType="email-address" autoCapitalize="none" />
-          <Text style={styles.formLabel}>Wachtwoord</Text>
-          <TextInput style={styles.formInput} placeholder="Min. 8 tekens" placeholderTextColor="#666" value={regPassword} onChangeText={setRegPassword} secureTextEntry />
-          <Text style={styles.formLabel}>Wachtwoord herhalen</Text>
-          <TextInput style={styles.formInput} placeholder="••••••••" placeholderTextColor="#666" value={regPassword2} onChangeText={setRegPassword2} secureTextEntry />
+            </>
+          ) : null}
         </View>
 
-        <TouchableOpacity style={styles.agreeRow} onPress={() => setAgreed(!agreed)}>
-          <View style={[styles.checkbox, agreed && styles.checkboxActive]}>
-            {agreed && <Text style={styles.checkmark}>✓</Text>}
-          </View>
-          <Text style={styles.agreeText}>
-            Ik ga akkoord met de <Text style={styles.agreeLink}>gebruiksvoorwaarden</Text> van ALL-INN MEDIA
+        <TouchableOpacity style={[styles.primary, busy && styles.disabled]} onPress={mode === 'login' ? onLogin : onRegister}>
+          <Text style={styles.primaryText}>
+            {busy ? 'Even geduld...' : mode === 'login' ? 'Inloggen' : 'Account aanmaken'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[isPremium ? styles.premiumRegBtn : styles.loginBtn, regLoading && styles.btnLoading]}
-          onPress={handleRegister}
-          disabled={regLoading}
-        >
-          <Text style={styles.loginBtnText}>
-            {regLoading ? '⏳ Account aanmaken...' : isPremium ? '🏆 Premium account aanmaken' : '✨ Gratis registreren'}
+        <TouchableOpacity style={styles.helperBtn} onPress={onResendConfirmation}>
+          <Text style={styles.helperBtnText}>Bevestigingsmail opnieuw sturen</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.helperText}>
+          Geen bevestigingsmail ontvangen? Gebruik dezelfde e-mail als waarmee het account is aangemaakt en controleer ook je spammap.
+        </Text>
+
+        <TouchableOpacity style={styles.switchBtn} onPress={() => setMode(mode === 'login' ? 'register' : 'login')}>
+          <Text style={styles.switchText}>
+            {mode === 'login' ? 'Nog geen account? Registreren' : 'Heb je al een account? Inloggen'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.switchBtn} onPress={() => setScreen('login')}>
-          <Text style={styles.switchText}>Al een account? <Text style={styles.switchLink}>Log hier in</Text></Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.backBtn} onPress={() => setScreen('landing')}>
-          <Text style={styles.backBtnText}>← Terug</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => setMode('landing')}>
+          <Text style={styles.backBtnText}>← Terug naar welkom</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -333,169 +300,152 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0a0a' },
   container: { flex: 1, backgroundColor: '#0a0a0a' },
-  content: { alignItems: 'center', paddingBottom: 48 },
-  authContent: { alignItems: 'center', paddingBottom: 48, paddingTop: 20 },
-  heroBg: {
-    width: '100%', alignItems: 'center',
-    paddingTop: 60, paddingBottom: 32,
-    backgroundColor: '#0a0a0a', overflow: 'hidden',
+  content: { paddingBottom: 30 },
+  hero: {
+    margin: 16,
+    marginTop: 30,
+    borderRadius: 20,
+    padding: 18,
+    backgroundColor: '#141414',
+    borderWidth: 1,
+    borderColor: '#2d2d2d',
+    overflow: 'hidden',
   },
-  glowRed: {
-    position: 'absolute', width: 280, height: 280, borderRadius: 140,
-    backgroundColor: 'rgba(210,0,28,0.18)', top: 0,
+  banner: { width: '100%', height: 130, marginBottom: 10 },
+  title: { fontSize: 27, color: '#C9A84C', fontWeight: '900', marginBottom: 6 },
+  subtitle: { color: 'rgba(255,255,255,0.76)', fontSize: 14, lineHeight: 22, paddingRight: 78 },
+  cornerImage: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    width: 62,
+    height: 62,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#C9A84C',
   },
-  glowGold: {
-    position: 'absolute', width: 200, height: 200, borderRadius: 100,
-    backgroundColor: 'rgba(201,168,76,0.10)', top: 40,
+  card: {
+    backgroundColor: '#151515',
+    marginHorizontal: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    padding: 16,
+    marginBottom: 12,
   },
-  ajaxLogoTop: { width: 80, height: 80, marginBottom: 8 },
-  logo: { width: W * 0.68, height: W * 0.68 },
-  heroTagline: { fontSize: 14, color: 'rgba(255,255,255,0.65)', textAlign: 'center', paddingHorizontal: 40, marginTop: 8 },
-  welcomeCard: {
-    backgroundColor: '#1a1a1a', marginHorizontal: 16, borderRadius: 20,
-    padding: 24, borderWidth: 1.5, borderColor: '#C9A84C',
-    width: W - 32, alignItems: 'center', marginBottom: 16,
+  cardHeading: { color: '#C9A84C', fontSize: 16, fontWeight: '800', marginBottom: 10 },
+  item: { color: 'rgba(255,255,255,0.78)', fontSize: 14, marginBottom: 8 },
+  primary: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+    backgroundColor: Ajax.red,
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
   },
-  ajaxLogo: { width: 90, height: 90, marginBottom: 12 },
-  welcomeTitle: { fontSize: 20, fontWeight: '900', color: '#C9A84C', marginBottom: 10, textAlign: 'center', letterSpacing: 0.5 },
-  welcomeText: { fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 22, textAlign: 'center' },
-  featureRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#1a1a1a', borderRadius: 14,
-    padding: 14, marginHorizontal: 16, marginBottom: 8,
-    width: W - 32, borderLeftWidth: 3, borderLeftColor: Ajax.red,
+  primaryText: { color: '#fff', fontSize: 16, fontWeight: '900' },
+  secondary: {
+    marginHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#C9A84C',
+    paddingVertical: 15,
+    alignItems: 'center',
   },
-  featureIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#2a2a2a', justifyContent: 'center', alignItems: 'center', marginRight: 14 },
-  featureIconText: { fontSize: 22 },
-  featureInfo: { flex: 1 },
-  featureTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
-  featureSub: { fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
-  featureChevron: { fontSize: 22, color: '#C9A84C' },
-  earlyBird: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#1f1200', borderRadius: 14,
-    padding: 14, marginHorizontal: 16, marginBottom: 12,
-    width: W - 32, borderWidth: 1.5, borderColor: '#C9A84C', marginTop: 8,
+  secondaryText: { color: '#C9A84C', fontSize: 16, fontWeight: '900' },
+  formContent: { paddingBottom: 30, paddingTop: 20 },
+  formHeader: { alignItems: 'center', marginBottom: 10 },
+  authLogo: { width: 94, height: 94, marginBottom: 6 },
+  formTitle: { color: '#C9A84C', fontSize: 25, fontWeight: '900' },
+  formSub: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
+  debugCard: {
+    backgroundColor: '#101010',
+    marginHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#2c2c2c',
+    padding: 12,
+    marginBottom: 12,
   },
-  earlyBirdEmoji: { fontSize: 28, marginRight: 10 },
-  earlyBirdInfo: { flex: 1 },
-  earlyBirdTitle: { fontSize: 13, fontWeight: '800', color: '#C9A84C' },
-  earlyBirdSub: { fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
-  earlyBirdBadge: { alignItems: 'center' },
-  earlyBirdCount: { fontSize: 20, fontWeight: '900', color: '#C9A84C' },
-  earlyBirdLeft: { fontSize: 11, color: 'rgba(255,255,255,0.4)' },
-  premiumBanner: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#1a1a1a', borderRadius: 14,
-    padding: 14, marginHorizontal: 16, marginBottom: 20,
-    width: W - 32, borderWidth: 1.5, borderColor: '#C9A84C', marginTop: 8,
+  debugTitle: {
+    color: '#C9A84C',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 6,
   },
-  premiumIcon: { fontSize: 28, marginRight: 12 },
-  premiumInfo: { flex: 1 },
-  premiumTitle: { fontSize: 14, fontWeight: '800', color: '#C9A84C' },
-  premiumSub: { fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
-  premiumOldPrice: { fontSize: 12, color: 'rgba(255,255,255,0.3)', textDecorationLine: 'line-through', textAlign: 'right' },
-  premiumPrice: { fontSize: 15, fontWeight: '900', color: '#C9A84C' },
-  loginBtn: {
-    backgroundColor: Ajax.red, width: W - 32,
-    padding: 16, borderRadius: 16, alignItems: 'center', marginBottom: 12,
-    elevation: 6, shadowColor: Ajax.red, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4, shadowRadius: 10,
+  debugLine: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 12,
+    marginBottom: 2,
   },
-  loginBtnText: { fontSize: 17, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
-  registerBtn: {
-    backgroundColor: '#1a1a1a', width: W - 32,
-    padding: 16, borderRadius: 16, alignItems: 'center',
-    borderWidth: 1.5, borderColor: '#C9A84C', marginBottom: 24,
+  label: { color: '#C9A84C', fontSize: 13, fontWeight: '700', marginTop: 10, marginBottom: 6 },
+  input: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: '#fff',
+    fontSize: 14,
   },
-  registerBtnText: { fontSize: 17, fontWeight: '900', color: '#C9A84C', letterSpacing: 0.5 },
-  premiumRegBtn: {
-    backgroundColor: '#C9A84C', width: W - 32,
-    padding: 16, borderRadius: 16, alignItems: 'center', marginBottom: 12, elevation: 6,
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2a2a2a',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
   },
-  btnLoading: { opacity: 0.7 },
-  authHeader: { alignItems: 'center', marginBottom: 24, paddingTop: 20 },
-  authLogo: { width: 100, height: 100, marginBottom: 12 },
-  authTitle: { fontSize: 26, fontWeight: '900', color: '#C9A84C', marginBottom: 4 },
-  authSub: { fontSize: 14, color: 'rgba(255,255,255,0.6)' },
-  formCard: {
-    backgroundColor: '#1a1a1a', borderRadius: 16,
-    padding: 20, width: W - 32, marginBottom: 16,
-    borderWidth: 1, borderColor: '#2a2a2a',
+  passwordInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
-  formLabel: { fontSize: 13, fontWeight: '700', color: '#C9A84C', marginBottom: 6, marginTop: 12 },
-  formInput: {
-    backgroundColor: '#2a2a2a', borderRadius: 12, padding: 12,
-    fontSize: 15, color: '#fff', borderWidth: 1, borderColor: '#3a3a3a',
-  },
-  forgotBtn: { alignSelf: 'flex-end', marginTop: 10 },
-  forgotText: { fontSize: 13, color: '#C9A84C', fontWeight: '600' },
-  planRow: { flexDirection: 'row', gap: 12, marginHorizontal: 16, marginBottom: 16, width: W - 32 },
-  planCard: {
-    flex: 1, backgroundColor: '#1a1a1a', borderRadius: 14,
-    padding: 14, alignItems: 'center', borderWidth: 1.5, borderColor: '#2a2a2a',
-  },
-  planCardActive: { borderColor: Ajax.red },
-  planCardPremium: { borderColor: '#C9A84C', backgroundColor: '#1f1a0a' },
-  planBestBadge: {
-    position: 'absolute', top: -10, alignSelf: 'center',
-    backgroundColor: '#C9A84C', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999,
-  },
-  planBestText: { fontSize: 10, fontWeight: '900', color: '#000' },
-  planIcon: { fontSize: 28, marginBottom: 6 },
-  planTitle: { fontSize: 15, fontWeight: '800', color: '#fff', marginBottom: 4 },
-  planTitlePremium: { color: '#C9A84C' },
-  planSub: { fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 16, marginBottom: 8 },
-  planSubPremium: { color: 'rgba(201,168,76,0.7)' },
-  planOldPrice: { fontSize: 12, color: 'rgba(255,255,255,0.3)', textDecorationLine: 'line-through', marginBottom: 2 },
-  planPrice: { fontSize: 16, fontWeight: '900', color: '#fff' },
-  planPricePremium: { color: '#C9A84C' },
-  durationBox: {
-    backgroundColor: '#1a1a1a', borderRadius: 16,
-    padding: 16, width: W - 32, marginBottom: 16,
-    borderWidth: 1, borderColor: '#2a2a2a',
-  },
-  durationTitle: { fontSize: 15, fontWeight: '800', color: '#C9A84C', marginBottom: 12 },
-  durationCard: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#2a2a2a', borderRadius: 12, padding: 14,
-    marginBottom: 8, borderWidth: 1.5, borderColor: '#3a3a3a',
-  },
-  durationCardActive: { borderColor: '#C9A84C', backgroundColor: '#1f1a0a' },
-  durationLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  durationRadio: {
-    width: 20, height: 20, borderRadius: 10,
-    borderWidth: 2, borderColor: '#555',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  durationRadioActive: { borderColor: '#C9A84C' },
-  durationRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#C9A84C' },
-  durationLabel: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  durationSaving: { fontSize: 11, color: '#C9A84C', marginTop: 2 },
-  durationRight: { alignItems: 'flex-end' },
-  durationOldPrice: { fontSize: 12, color: 'rgba(255,255,255,0.3)', textDecorationLine: 'line-through' },
-  durationPrice: { fontSize: 16, fontWeight: '900', color: '#fff' },
-  durationPriceActive: { color: '#C9A84C' },
-  agreeRow: {
-    flexDirection: 'row', alignItems: 'center',
-    marginHorizontal: 16, marginBottom: 16, width: W - 32,
-  },
+  eyeBtn: { paddingHorizontal: 12, paddingVertical: 12 },
+  eyeText: { fontSize: 16 },
+  termsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
   checkbox: {
-    width: 26, height: 26, borderRadius: 8,
-    borderWidth: 2, borderColor: '#C9A84C',
-    marginRight: 12, justifyContent: 'center', alignItems: 'center',
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#C9A84C',
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   checkboxActive: { backgroundColor: '#C9A84C' },
-  checkmark: { fontSize: 15, fontWeight: '900', color: '#000' },
-  agreeText: { fontSize: 13, color: 'rgba(255,255,255,0.65)', flex: 1, lineHeight: 19 },
-  agreeLink: { color: '#C9A84C', fontWeight: '700' },
-  switchBtn: { marginBottom: 12 },
-  switchText: { fontSize: 14, color: 'rgba(255,255,255,0.5)' },
-  switchLink: { color: '#C9A84C', fontWeight: '700' },
-  backBtn: { marginBottom: 24 },
-  backBtnText: { fontSize: 14, color: 'rgba(255,255,255,0.4)' },
-  footer: { alignItems: 'center', gap: 4, marginTop: 8 },
-  footerText: { fontSize: 12, color: 'rgba(255,255,255,0.3)' },
-  footerStar: { fontSize: 13, color: '#C9A84C' },
+  checkText: { color: '#000', fontSize: 13, fontWeight: '900' },
+  termsText: { color: 'rgba(255,255,255,0.72)', fontSize: 12, flex: 1 },
+  linkText: { color: '#C9A84C', fontWeight: '700' },
+  disabled: { opacity: 0.7 },
+  helperBtn: {
+    marginHorizontal: 16,
+    marginTop: 2,
+    marginBottom: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
+    backgroundColor: '#171717',
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  helperBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  helperText: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    color: 'rgba(255,255,255,0.58)',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  switchBtn: { marginTop: 4, alignItems: 'center' },
+  switchText: { color: '#C9A84C', fontSize: 13, fontWeight: '700' },
+  backBtn: { marginTop: 10, alignItems: 'center' },
+  backBtnText: { color: 'rgba(255,255,255,0.56)', fontSize: 12 },
 });

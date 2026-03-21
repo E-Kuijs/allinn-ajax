@@ -18,7 +18,9 @@ const MAPPING = {
   'tag.fill': 'local-offer',
   'bubble.left.and.bubble.right.fill': 'forum',
   'sportscourt.fill': 'sports-soccer',
+  'play.rectangle.fill': 'play-circle-filled',
   'person.fill': 'person',
+  'creditcard.fill': 'credit-card',
   // Extra
   'magnifyingglass': 'search',
   'plus.circle.fill': 'add-circle',

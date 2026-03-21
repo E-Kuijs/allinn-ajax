@@ -1,234 +1,257 @@
-import { Tabs, router } from 'expo-router';
-import React, { useRef, useState } from 'react';
-import {
-  Platform, View, TouchableOpacity, Text, StyleSheet,
-  Animated, Dimensions, TextInput, Image
-} from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { Redirect, Tabs, usePathname, useRouter } from 'expo-router';
 
-import { HapticTab } from '@/components/haptic-tab';
+import { MembershipBadge } from '@/components/membership-badge';
+import { TwoRowTabBar } from '@/components/two-row-tab-bar';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { useAppContext } from '@/src/core/app-context';
 
-const { width: W, height: H } = Dimensions.get('window');
+export const unstable_settings = {
+  initialRouteName: 'welcome',
+};
 
-function FloatingChat() {
-  const [open, setOpen] = useState(false);
-  const [message, setMessage] = useState('');
-  const pan = useRef(new Animated.ValueXY({ x: W - 80, y: H - 280 })).current;
-  const dragging = useRef(false);
-  const lastPos = useRef({ x: W - 80, y: H - 280 });
-
-  const sendMessage = () => {
-    if (!message.trim()) return;
-    setMessage('');
-    setOpen(false);
-  };
+function HeaderIdentity() {
+  const { entitlements } = useAppContext();
+  const bannerLabel =
+    entitlements.badgeLabel === 'VIP FAMILY' ? 'VIP SPECIAL MEMBER' : entitlements.badgeLabel;
 
   return (
-    <>
-      {open && (
-        <View style={fab.popup}>
-          <View style={fab.popupHeader}>
-            <Text style={fab.popupTitle}>💬 Snel bericht</Text>
-            <TouchableOpacity onPress={() => setOpen(false)}>
-              <Text style={fab.popupClose}>✕</Text>
-            </TouchableOpacity>
-          </View>
-          <TextInput
-            style={fab.popupInput}
-            placeholder="Typ een bericht..."
-            placeholderTextColor="#999"
-            value={message}
-            onChangeText={setMessage}
-            multiline
-            autoFocus
-          />
-          <View style={fab.popupActions}>
-            <TouchableOpacity
-              style={fab.popupGoBtn}
-              onPress={() => { setOpen(false); router.push('/(tabs)/chat' as any); }}
-            >
-              <Text style={fab.popupGoBtnText}>Naar Chat →</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[fab.popupSendBtn, !message.trim() && fab.popupSendBtnDisabled]}
-              onPress={sendMessage}
-            >
-              <Text style={fab.popupSendBtnText}>Verstuur</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      <Animated.View
-        style={[fab.btn, { transform: pan.getTranslateTransform() }]}
-        onStartShouldSetResponder={() => true}
-        onMoveShouldSetResponder={() => true}
-        onResponderGrant={() => {
-          dragging.current = false;
-          pan.setOffset({ x: lastPos.current.x, y: lastPos.current.y });
-          pan.setValue({ x: 0, y: 0 });
-        }}
-        onResponderMove={(e) => {
-          dragging.current = true;
-          pan.setValue({
-            x: e.nativeEvent.pageX - lastPos.current.x - 30,
-            y: e.nativeEvent.pageY - lastPos.current.y - 30,
-          });
-        }}
-        onResponderRelease={() => {
-          pan.flattenOffset();
-          const x = (pan.x as any)._value;
-          const y = (pan.y as any)._value;
-          lastPos.current = { x, y };
-          const snapX = x < W / 2 ? 16 : W - 80;
-          const clampY = Math.max(80, Math.min(y, H - 220));
-          Animated.spring(pan, {
-            toValue: { x: snapX, y: clampY },
-            useNativeDriver: false,
-            tension: 100,
-            friction: 8,
-          }).start(() => { lastPos.current = { x: snapX, y: clampY }; });
-          if (!dragging.current) setOpen(prev => !prev);
-        }}
-      >
-        <View style={fab.inner}>
-          <Text style={fab.icon}>💬</Text>
-          {!open && <View style={fab.badge}><Text style={fab.badgeText}>3</Text></View>}
-        </View>
-      </Animated.View>
-    </>
-  );
-}
-
-// Ajax logo rechtsbovenin elke header
-const AjaxLogo = () => (
-  <Image
-    source={require('@/assets/images/logo-ajax.png')}
-    style={{ width: 36, height: 36, marginRight: 12, borderRadius: 18 }}
-    resizeMode="contain"
-  />
-);
-
-export default function TabLayout() {
-  return (
-    <View style={{ flex: 1 }}>
-      <Tabs
-        screenOptions={{
-          tabBarActiveTintColor: Colors.light.tabIconSelected,
-          tabBarInactiveTintColor: Colors.light.tabIconDefault,
-          tabBarStyle: {
-            backgroundColor: '#D2001C',
-            borderTopWidth: 0,
-            elevation: 12,
-            shadowColor: '#000',
-            shadowOpacity: 0.25,
-            shadowRadius: 8,
-            shadowOffset: { width: 0, height: -2 },
-            height: Platform.OS === 'ios' ? 82 : 96,
-            paddingBottom: Platform.OS === 'ios' ? 22 : 42,
-            paddingTop: 6,
-          },
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-          headerStyle: { backgroundColor: '#D2001C' },
-          headerTintColor: '#FFFFFF',
-          headerTitleStyle: { fontWeight: '800', fontSize: 18, letterSpacing: 0.5 },
-          tabBarButton: HapticTab,
-          headerShown: true,
-          headerRight: () => <AjaxLogo />,
-        }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: 'Nieuws',
-            headerTitle: 'ALL-INN AJAX',
-            tabBarIcon: ({ color }) => <IconSymbol size={26} name="newspaper.fill" color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="marketplace"
-          options={{
-            title: 'Marktplaats',
-            headerTitle: 'Marktplaats',
-            tabBarIcon: ({ color }) => <IconSymbol size={26} name="tag.fill" color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="chat"
-          options={{
-            title: 'Fan Chat',
-            headerTitle: 'Fan Chat',
-            tabBarIcon: ({ color }) => <IconSymbol size={26} name="bubble.left.and.bubble.right.fill" color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="events"
-          options={{
-            title: 'Wedstrijden',
-            headerTitle: 'Wedstrijden',
-            tabBarIcon: ({ color }) => <IconSymbol size={26} name="sportscourt.fill" color={color} />,
-          }}
-        />
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: 'Profiel',
-            headerTitle: 'Mijn Profiel',
-            tabBarIcon: ({ color }) => <IconSymbol size={26} name="person.fill" color={color} />,
-          }}
-        />
-        <Tabs.Screen name="welcome" options={{ href: null }} />
-      </Tabs>
-      <FloatingChat />
+    <View style={styles.headerIdentity}>
+      <MembershipBadge
+        label={bannerLabel}
+        starsColor={entitlements.starsColor}
+        inBanner
+        showMotto={false}
+        brandMark="ALL-INN MEDIA"
+      />
     </View>
   );
 }
 
-const fab = StyleSheet.create({
-  btn: { position: 'absolute', zIndex: 9999 },
-  inner: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: '#D2001C',
-    justifyContent: 'center', alignItems: 'center',
-    elevation: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35, shadowRadius: 8,
+function HeaderTitleBlock() {
+  const { headerText } = useAppContext();
+  return (
+    <View style={styles.titleBlock}>
+      <Text style={styles.titleBlockText} numberOfLines={1}>
+        {headerText}
+      </Text>
+    </View>
+  );
+}
+
+function HeaderRight() {
+  return <HeaderIdentity />;
+}
+
+function tabHeaderRight(_routeName: string) {
+  return HeaderRight;
+}
+
+function tabHeaderRightStyle(routeName: string) {
+  if (routeName === 'index') return { paddingRight: 2, maxWidth: 300 };
+  return { paddingRight: 2, maxWidth: 290 };
+}
+
+function tabHeaderTitleStyle(routeName: string) {
+  if (routeName === 'index') return { paddingLeft: 0 };
+  return { paddingLeft: 3 };
+}
+
+export default function TabLayout() {
+  const { loading, session, entitlements } = useAppContext();
+  const router = useRouter();
+  const pathname = usePathname();
+  const startupRedirectWindowRef = useRef(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startupRedirectWindowRef.current = false;
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!startupRedirectWindowRef.current) return;
+    if (pathname === '/(tabs)' || pathname === '/(tabs)/index') {
+      router.replace('/(tabs)/welcome');
+    }
+  }, [pathname, router]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" color="#D2001C" />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <Redirect href="/welcome" />;
+  }
+
+  return (
+    <Tabs
+      initialRouteName="welcome"
+      screenOptions={{
+        tabBarActiveTintColor: '#FFE4A8',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.62)',
+        headerStyle: {
+          backgroundColor: '#D2001C',
+          borderBottomWidth: 2,
+          borderBottomColor: '#000',
+        },
+        headerTintColor: '#FFFFFF',
+        headerShown: true,
+        headerTitleAlign: 'left',
+      }}
+      tabBar={(props) => <TwoRowTabBar {...props} />}
+    >
+      <Tabs.Screen
+        name="welcome"
+        options={{
+          title: 'Welkom',
+          headerTitle: () => <HeaderTitleBlock />,
+          headerRight: tabHeaderRight('welcome'),
+          headerRightContainerStyle: tabHeaderRightStyle('welcome'),
+          headerTitleContainerStyle: tabHeaderTitleStyle('welcome'),
+          tabBarIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Nieuws',
+          headerTitle: () => <HeaderTitleBlock />,
+          headerRight: HeaderRight,
+          headerRightContainerStyle: tabHeaderRightStyle('index'),
+          headerTitleContainerStyle: tabHeaderTitleStyle('index'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="newspaper.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="marketplace"
+        options={{
+          title: 'Marktplaats',
+          headerTitle: () => <HeaderTitleBlock />,
+          headerRight: tabHeaderRight('marketplace'),
+          headerRightContainerStyle: tabHeaderRightStyle('marketplace'),
+          headerTitleContainerStyle: tabHeaderTitleStyle('marketplace'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="tag.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="chat"
+        options={{
+          title: 'Fan Chat',
+          headerTitle: () => <HeaderTitleBlock />,
+          headerRight: tabHeaderRight('chat'),
+          headerRightContainerStyle: tabHeaderRightStyle('chat'),
+          headerTitleContainerStyle: tabHeaderTitleStyle('chat'),
+          tabBarIcon: ({ color }) =>
+            <IconSymbol size={26} name="bubble.left.and.bubble.right.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="events"
+        options={{
+          title: 'Wedstrijden',
+          headerTitle: () => <HeaderTitleBlock />,
+          headerRight: tabHeaderRight('events'),
+          headerRightContainerStyle: tabHeaderRightStyle('events'),
+          headerTitleContainerStyle: tabHeaderTitleStyle('events'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="sportscourt.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="media"
+        options={{
+          title: 'Media',
+          headerTitle: () => <HeaderTitleBlock />,
+          headerRight: tabHeaderRight('media'),
+          headerRightContainerStyle: tabHeaderRightStyle('media'),
+          headerTitleContainerStyle: tabHeaderTitleStyle('media'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="play.rectangle.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="luxe"
+        options={{
+          title: 'Luxe',
+          headerTitle: () => <HeaderTitleBlock />,
+          headerRight: tabHeaderRight('luxe'),
+          headerRightContainerStyle: tabHeaderRightStyle('luxe'),
+          headerTitleContainerStyle: tabHeaderTitleStyle('luxe'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="creditcard.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="account"
+        options={{
+          title: 'Profiel',
+          headerTitle: () => <HeaderTitleBlock />,
+          headerRight: tabHeaderRight('account'),
+          headerRightContainerStyle: tabHeaderRightStyle('account'),
+          headerTitleContainerStyle: tabHeaderTitleStyle('account'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="person.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Instellingen',
+          headerTitle: () => <HeaderTitleBlock />,
+          headerRight: tabHeaderRight('profile'),
+          headerRightContainerStyle: tabHeaderRightStyle('profile'),
+          headerTitleContainerStyle: tabHeaderTitleStyle('profile'),
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="gear" color={color} />,
+        }}
+      />
+      {entitlements.isDeveloper ? (
+        <Tabs.Screen
+          name="owner"
+          options={{
+            title: 'Beheer',
+            headerTitle: () => <HeaderTitleBlock />,
+            headerRight: tabHeaderRight('owner'),
+            headerRightContainerStyle: tabHeaderRightStyle('owner'),
+            headerTitleContainerStyle: tabHeaderTitleStyle('owner'),
+            tabBarIcon: ({ color }) => <IconSymbol size={26} name="plus.circle.fill" color={color} />,
+          }}
+        />
+      ) : null}
+    </Tabs>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#050505',
   },
-  icon: { fontSize: 26 },
-  badge: {
-    position: 'absolute', top: 6, right: 6,
-    backgroundColor: '#fff', width: 18, height: 18,
-    borderRadius: 9, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 1.5, borderColor: '#D2001C',
+  headerIdentity: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 4,
+    marginTop: -14,
   },
-  badgeText: { fontSize: 10, fontWeight: '900', color: '#D2001C' },
-  popup: {
-    position: 'absolute', bottom: 160, right: 16,
-    width: W - 32, backgroundColor: '#fff',
-    borderRadius: 16, padding: 16, zIndex: 9998,
-    elevation: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 12,
+  titleBlock: {
+    backgroundColor: '#0E0E0E',
+    borderWidth: 1.6,
+    borderColor: '#FFD369',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    maxWidth: 186,
+    marginLeft: -7,
   },
-  popupHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  popupTitle: { fontSize: 15, fontWeight: '700', color: '#1a1a1a' },
-  popupClose: { fontSize: 18, color: '#999', fontWeight: '700' },
-  popupInput: {
-    backgroundColor: '#F5F5F5', borderRadius: 12, padding: 12,
-    fontSize: 14, color: '#1a1a1a', minHeight: 80,
-    textAlignVertical: 'top', marginBottom: 10,
+  titleBlockText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 0.3,
   },
-  popupActions: { flexDirection: 'row', gap: 8 },
-  popupGoBtn: {
-    flex: 1, padding: 10, borderRadius: 10,
-    backgroundColor: '#FFF0F0', alignItems: 'center',
-  },
-  popupGoBtnText: { fontSize: 13, fontWeight: '600', color: '#D2001C' },
-  popupSendBtn: {
-    flex: 1, padding: 10, borderRadius: 10,
-    backgroundColor: '#D2001C', alignItems: 'center',
-  },
-  popupSendBtnDisabled: { backgroundColor: '#eee' },
-  popupSendBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 });

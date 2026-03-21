@@ -29,23 +29,30 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
 # local tooling
 .vscode/
 .claude/
 
-# macOS
+# macOS / Windows
 .DS_Store
-*.pem
+Thumbs.db
 
-# local env files
+# secrets / local env files
+.env
+.env.*
+!.env.example
 .env*.local
+*.pem
 
 # typescript
 *.tsbuildinfo
 
-app-example
-
 # generated native folders
 /ios
 /android
+
+# misc
+coverage/
+app-example

@@ -1,58 +1,81 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
-
-# dependencies
+# -----------------------------
+# Dependencies
+# -----------------------------
 node_modules/
 
-# Expo
+# -----------------------------
+# Expo / React Native
+# -----------------------------
 .expo/
 .expo-smoke/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# -----------------------------
+# Native builds
+# -----------------------------
+/ios
+/android
 .kotlin/
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*service-account*.json
-*google-play*.json
-*play-console*.json
 
-# Metro
-.metro-health-check*
-
-# debug
+# -----------------------------
+# Logs / debug
+# -----------------------------
+*.log
 npm-debug.*
 yarn-debug.*
 yarn-error.*
-*.log
 
-# local tooling
+# -----------------------------
+# Local tooling
+# -----------------------------
 .vscode/
 .claude/
 
-# macOS / Windows
+# -----------------------------
+# OS files
+# -----------------------------
 .DS_Store
 Thumbs.db
 
-# secrets / local env files
+# -----------------------------
+# Secrets / ENV (HEEL BELANGRIJK)
+# -----------------------------
 .env
 .env.*
 !.env.example
 .env*.local
-*.pem
 
-# typescript
+# -----------------------------
+# Certificates / keys
+# -----------------------------
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+
+# -----------------------------
+# Google / Play / service accounts
+# -----------------------------
+*service-account*.json
+*google-play*.json
+*play-console*.json
+
+# -----------------------------
+# Metro / cache
+# -----------------------------
+.metro-health-check*
+
+# -----------------------------
+# TypeScript
+# -----------------------------
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
-
-# misc
+# -----------------------------
+# Coverage / misc
+# -----------------------------
 coverage/
 app-example

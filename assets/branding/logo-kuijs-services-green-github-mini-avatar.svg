@@ -1,0 +1,83 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="faceBg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 252) rotate(90) scale(188)">
+      <stop offset="0" stop-color="#205E39"/>
+      <stop offset="0.55" stop-color="#0D4125"/>
+      <stop offset="1" stop-color="#08160D"/>
+    </radialGradient>
+    <radialGradient id="innerGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 220) rotate(90) scale(170)">
+      <stop offset="0" stop-color="#2E7C4D" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#10331E" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#07110A" stop-opacity="0.92"/>
+    </radialGradient>
+    <linearGradient id="goldRing" x1="78" y1="77" x2="429" y2="436" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF8C9"/>
+      <stop offset="0.14" stop-color="#FFE28C"/>
+      <stop offset="0.36" stop-color="#D49116"/>
+      <stop offset="0.5" stop-color="#FFF2B0"/>
+      <stop offset="0.68" stop-color="#C67B0C"/>
+      <stop offset="0.86" stop-color="#FFD568"/>
+      <stop offset="1" stop-color="#FFF7C3"/>
+    </linearGradient>
+    <linearGradient id="goldText" x1="126" y1="164" x2="388" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFAD8"/>
+      <stop offset="0.18" stop-color="#FFE695"/>
+      <stop offset="0.48" stop-color="#D48E11"/>
+      <stop offset="0.8" stop-color="#FFC94D"/>
+      <stop offset="1" stop-color="#FFF2BF"/>
+    </linearGradient>
+    <linearGradient id="ribbonGreen" x1="122" y1="292" x2="392" y2="372" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0A3F25"/>
+      <stop offset="0.22" stop-color="#117A44"/>
+      <stop offset="0.48" stop-color="#33B56C"/>
+      <stop offset="0.78" stop-color="#0E6739"/>
+      <stop offset="1" stop-color="#082C18"/>
+    </linearGradient>
+    <linearGradient id="ribbonEdge" x1="132" y1="297" x2="380" y2="367" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8BF0B5"/>
+      <stop offset="0.45" stop-color="#D7FFE7"/>
+      <stop offset="1" stop-color="#56D78A"/>
+    </linearGradient>
+    <linearGradient id="silverText" x1="170" y1="306" x2="342" y2="354" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.28" stop-color="#EEF8F1"/>
+      <stop offset="0.52" stop-color="#B9D0C0"/>
+      <stop offset="0.78" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#D4E2D8"/>
+    </linearGradient>
+    <filter id="badgeShadow" x="22" y="20" width="468" height="472" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feOffset dy="12"/>
+      <feGaussianBlur stdDeviation="18"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.38 0"/>
+      <feBlend mode="normal" in2="SourceGraphic" result="shape"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#badgeShadow)">
+    <circle cx="256" cy="244" r="193" fill="url(#goldRing)"/>
+    <circle cx="256" cy="244" r="181" fill="#110E0C"/>
+    <circle cx="256" cy="244" r="175" fill="url(#goldRing)"/>
+    <circle cx="256" cy="244" r="166" fill="#09130C"/>
+    <circle cx="256" cy="244" r="158" fill="url(#faceBg)"/>
+    <circle cx="256" cy="244" r="158" fill="url(#innerGlow)"/>
+
+    <path d="M120 95C156 72 202 61 256 61C310 61 356 72 392 95" stroke="url(#goldRing)" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+
+    <text x="256" y="251" text-anchor="middle" font-family="Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" font-size="86" letter-spacing="2" fill="url(#goldText)" stroke="#5A3408" stroke-width="8" paint-order="stroke fill">
+      E-K
+    </text>
+
+    <g>
+      <path d="M116 304L146 285H366L396 304L386 369H126L116 304Z" fill="url(#ribbonGreen)" stroke="#0A2D17" stroke-width="4"/>
+      <path d="M146 285L111 302L125 319L116 304L146 285Z" fill="#0A331B" stroke="#0A2D17" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M366 285L401 302L387 319L396 304L366 285Z" fill="#0A331B" stroke="#0A2D17" stroke-width="4" stroke-linejoin="round"/>
+      <path d="M132 296C165 292 206 289 256 289C306 289 347 292 380 296" stroke="url(#ribbonEdge)" stroke-width="3" stroke-linecap="round" opacity="0.95"/>
+    </g>
+
+    <text x="256" y="349" text-anchor="middle" font-family="Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif" font-size="38" letter-spacing="3" fill="url(#silverText)" stroke="#1E5D34" stroke-width="4" paint-order="stroke fill">
+      SERVICES
+    </text>
+
+    <path d="M256 390L261 401H273L263 408L267 420L256 413L245 420L249 408L239 401H251L256 390Z" fill="url(#goldRing)"/>
+  </g>
+</svg>

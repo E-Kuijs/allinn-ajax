@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.allinmedia.allinajax",
-      "buildNumber": "9",
+      "buildNumber": "10",
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
@@ -28,7 +28,7 @@
       },
       "softwareKeyboardLayoutMode": "pan",
       "package": "com.allinmedia.allinajax",
-      "versionCode": 9,
+      "versionCode": 10,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.CAMERA",

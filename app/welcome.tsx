@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -11,29 +11,33 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { router } from 'expo-router';
+} from "react-native";
+import { router } from "expo-router";
 
-import { Ajax } from '@/constants/theme';
-import { useAppContext } from '@/src/core/app-context';
-import { supabaseRuntimeDebug } from '@/src/core/supabaseClient';
+import { Ajax } from "@/constants/theme";
+import { useAppContext } from "@/src/core/app-context";
+import {
+  supabaseRuntimeDebug,
+  testSupabaseConnection,
+} from "@/src/core/supabaseClient";
 
-type Mode = 'landing' | 'login' | 'register';
+type Mode = "landing" | "login" | "register";
 
 export default function WelcomeScreen() {
-  const { loading, session, signIn, signUp, resendSignupConfirmation, content } = useAppContext();
+  const { loading, session, signIn, signInWithGoogle, signUp, content } =
+    useAppContext();
 
-  const [mode, setMode] = useState<Mode>('landing');
+  const [mode, setMode] = useState<Mode>("landing");
 
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPass, setShowLoginPass] = useState(false);
 
-  const [regName, setRegName] = useState('');
-  const [regUsername, setRegUsername] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regPassword2, setRegPassword2] = useState('');
+  const [regName, setRegName] = useState("");
+  const [regUsername, setRegUsername] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regPassword, setRegPassword] = useState("");
+  const [regPassword2, setRegPassword2] = useState("");
   const [showRegPass, setShowRegPass] = useState(false);
   const [showRegPass2, setShowRegPass2] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -41,8 +45,20 @@ export default function WelcomeScreen() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    console.log("[WELCOME] mounted");
+    console.log("[SUPABASE DEBUG]", supabaseRuntimeDebug);
+
+    const runTest = async () => {
+      const result = await testSupabaseConnection();
+      console.log("[SUPABASE TEST RESULT]", result);
+    };
+
+    void runTest();
+  }, []);
+
+  useEffect(() => {
     if (session) {
-      router.replace('/(tabs)/welcome' as any);
+      router.replace("/(tabs)/welcome" as any);
     }
   }, [session]);
 
@@ -56,35 +72,65 @@ export default function WelcomeScreen() {
 
   const onLogin = async () => {
     if (!loginEmail.trim() || !loginPassword.trim()) {
-      Alert.alert('Vul alles in', 'E-mail en wachtwoord zijn verplicht.');
+      Alert.alert("Vul alles in", "E-mail en wachtwoord zijn verplicht.");
       return;
     }
+
+    console.log("[LOGIN] start", loginEmail);
 
     setBusy(true);
-    const result = await signIn({ email: loginEmail, password: loginPassword });
+    const result = await signIn({
+      email: loginEmail,
+      password: loginPassword,
+    });
     setBusy(false);
 
+    console.log("[LOGIN RESULT]", result);
+
     if (!result.ok) {
-      Alert.alert('Inloggen mislukt', result.message ?? 'Controleer je gegevens.');
+      Alert.alert(
+        "Inloggen mislukt",
+        result.message ?? "Controleer je gegevens.",
+      );
       return;
     }
 
-    router.replace('/(tabs)/welcome' as any);
+    router.replace("/(tabs)/welcome" as any);
+  };
+
+  const onGoogleLogin = async () => {
+    setBusy(true);
+    const result = await signInWithGoogle();
+    setBusy(false);
+
+    console.log("[GOOGLE LOGIN]", result);
+
+    if (!result.ok) {
+      Alert.alert("Google login mislukt", result.message ?? "Probeer opnieuw.");
+    }
   };
 
   const onRegister = async () => {
-    if (!regName.trim() || !regUsername.trim() || !regEmail.trim() || !regPassword.trim()) {
-      Alert.alert('Vul alles in', 'Alle velden zijn verplicht.');
+    if (
+      !regName.trim() ||
+      !regUsername.trim() ||
+      !regEmail.trim() ||
+      !regPassword.trim()
+    ) {
+      Alert.alert("Vul alles in", "Alle velden zijn verplicht.");
       return;
     }
 
     if (regPassword !== regPassword2) {
-      Alert.alert('Controle', 'Wachtwoorden komen niet overeen.');
+      Alert.alert("Controle", "Wachtwoorden komen niet overeen.");
       return;
     }
 
     if (!agreed) {
-      Alert.alert('Akkoord vereist', 'Je moet akkoord gaan met de gebruiksvoorwaarden.');
+      Alert.alert(
+        "Akkoord vereist",
+        "Je moet akkoord gaan met de gebruiksvoorwaarden.",
+      );
       return;
     }
 
@@ -93,73 +139,63 @@ export default function WelcomeScreen() {
       email: regEmail,
       password: regPassword,
       displayName: regName,
-      username: regUsername.startsWith('@') ? regUsername : `@${regUsername}`,
+      username: regUsername.startsWith("@") ? regUsername : `@${regUsername}`,
       acceptedTermsVersion: content.termsVersion,
     });
     setBusy(false);
 
+    console.log("[REGISTER RESULT]", result);
+
     if (!result.ok) {
-      Alert.alert('Registratie mislukt', result.message ?? 'Probeer opnieuw.');
+      Alert.alert("Registratie mislukt", result.message ?? "Probeer opnieuw.");
       return;
     }
 
-    Alert.alert('Gelukt', result.message ?? 'Account aangemaakt.', [
-      {
-        text: 'OK',
-        onPress: () => setMode('login'),
-      },
+    Alert.alert ("Gelukt", result.message ?? "Account aangemaakt.", [
+      { text: "OK", onPress: () => setMode("login") },
     ]);
-  };
-
-  const onResendConfirmation = async () => {
-    const email = mode === 'login' ? loginEmail : regEmail;
-    if (!email.trim()) {
-      Alert.alert('E-mail nodig', 'Vul eerst het e-mailadres in waarvoor je de bevestigingsmail opnieuw wilt sturen.');
-      return;
-    }
-
-    setBusy(true);
-    const result = await resendSignupConfirmation(email);
-    setBusy(false);
-
-    if (!result.ok) {
-      Alert.alert('Opnieuw versturen mislukt', result.message ?? 'Probeer opnieuw.');
-      return;
-    }
-
-    Alert.alert('Bevestigingsmail verstuurd', result.message ?? 'Controleer ook je spammap.');
   };
 
   const bannerSource = content.welcomeBannerUrl
     ? { uri: content.welcomeBannerUrl }
-    : require('@/assets/images/logo-media.png');
+    : require("@/assets/images/logo-media.png");
 
   const cornerSource = content.welcomeCornerImageUrl
     ? { uri: content.welcomeCornerImageUrl }
-    : require('@/assets/images/logo-ajax.png');
+    : require("@/assets/images/logo-ajax.png");
 
-  if (mode === 'landing') {
+  if (mode === "landing") {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.hero}>
-          <Image source={bannerSource} style={styles.banner} resizeMode="contain" />
+          <Image
+            source={bannerSource}
+            style={styles.banner}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>{content.welcomeTitle}</Text>
           <Text style={styles.subtitle}>{content.welcomeText}</Text>
-          <Image source={cornerSource} style={styles.cornerImage} resizeMode="cover" />
+          <Image
+            source={cornerSource}
+            style={styles.cornerImage}
+            resizeMode="cover"
+          />
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardHeading}>Wat je krijgt</Text>
-          <Text style={styles.item}>📰 Ajax nieuws en updates</Text>
-          <Text style={styles.item}>💬 Fan chat met moderatie</Text>
-          <Text style={styles.item}>🏷️ Marktplaats voor Ajax merchandise</Text>
-          <Text style={styles.item}>⚽ Wedstrijden + agenda + route</Text>
-        </View>
-
-        <TouchableOpacity style={styles.primary} onPress={() => router.push('/login' as any)}>
+        <TouchableOpacity
+          style={styles.primary}
+          onPress={() => setMode("login")}
+        >
           <Text style={styles.primaryText}>Inloggen</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondary} onPress={() => setMode('register')}>
+
+        <TouchableOpacity
+          style={styles.secondary}
+          onPress={() => setMode("register")}
+        >
           <Text style={styles.secondaryText}>Registreren</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -169,130 +205,151 @@ export default function WelcomeScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 20 : 0}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView contentContainerStyle={styles.formContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.formHeader}>
-          <Image source={require('@/assets/images/logo-ajax.png')} style={styles.authLogo} resizeMode="contain" />
-          <Text style={styles.formTitle}>{mode === 'login' ? 'Inloggen' : 'Registreren'}</Text>
-          <Text style={styles.formSub}>Welkom terug Ajax fan</Text>
-        </View>
-
-        <View style={styles.debugCard}>
-          <Text style={styles.debugTitle}>Runtime Debug</Text>
-          <Text style={styles.debugLine}>URL ref: {supabaseRuntimeDebug.urlProjectRef ?? 'onbekend'}</Text>
-          <Text style={styles.debugLine}>KEY ref: {supabaseRuntimeDebug.keyProjectRef ?? 'onbekend'}</Text>
-          <Text style={styles.debugLine}>Host: {supabaseRuntimeDebug.host ?? 'onbekend'}</Text>
-        </View>
-
-        <View style={styles.card}>
-          {mode === 'register' ? (
-            <>
-              <Text style={styles.label}>Echte naam</Text>
-              <TextInput
-                style={styles.input}
-                value={regName}
-                onChangeText={setRegName}
-                placeholder="Jouw echte naam"
-                placeholderTextColor="#888"
-              />
-
-              <Text style={styles.label}>Gebruikersnaam</Text>
-              <TextInput
-                style={styles.input}
-                value={regUsername}
-                onChangeText={setRegUsername}
-                placeholder="@ajaxfan"
-                placeholderTextColor="#888"
-                autoCapitalize="none"
-              />
-            </>
-          ) : null}
-
-          <Text style={styles.label}>E-mail</Text>
-          <TextInput
-            style={styles.input}
-            value={mode === 'login' ? loginEmail : regEmail}
-            onChangeText={mode === 'login' ? setLoginEmail : setRegEmail}
-            placeholder="naam@email.nl"
-            placeholderTextColor="#888"
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-
-          <Text style={styles.label}>Wachtwoord</Text>
-          <View style={styles.passwordRow}>
-            <TextInput
-              style={styles.passwordInput}
-              value={mode === 'login' ? loginPassword : regPassword}
-              onChangeText={mode === 'login' ? setLoginPassword : setRegPassword}
-              placeholder="••••••••"
-              placeholderTextColor="#888"
-              secureTextEntry={mode === 'login' ? !showLoginPass : !showRegPass}
-            />
-            <TouchableOpacity
-              style={styles.eyeBtn}
-              onPress={() => (mode === 'login' ? setShowLoginPass((v) => !v) : setShowRegPass((v) => !v))}
-            >
-              <Text style={styles.eyeText}>👁</Text>
-            </TouchableOpacity>
-          </View>
-
-          {mode === 'register' ? (
-            <>
-              <Text style={styles.label}>Herhaal wachtwoord</Text>
-              <View style={styles.passwordRow}>
-                <TextInput
-                  style={styles.passwordInput}
-                  value={regPassword2}
-                  onChangeText={setRegPassword2}
-                  placeholder="••••••••"
-                  placeholderTextColor="#888"
-                  secureTextEntry={!showRegPass2}
-                />
-                <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowRegPass2((v) => !v)}>
-                  <Text style={styles.eyeText}>👁</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity style={styles.termsRow} onPress={() => setAgreed((v) => !v)}>
-                <View style={[styles.checkbox, agreed && styles.checkboxActive]}>
-                  {agreed ? <Text style={styles.checkText}>✓</Text> : null}
-                </View>
-                <Text style={styles.termsText}>
-                  Ik ga akkoord met de{' '}
-                  <Text style={styles.linkText} onPress={() => router.push('/legal')}>
-                    gebruiksvoorwaarden
-                  </Text>
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : null}
-        </View>
-
-        <TouchableOpacity style={[styles.primary, busy && styles.disabled]} onPress={mode === 'login' ? onLogin : onRegister}>
-          <Text style={styles.primaryText}>
-            {busy ? 'Even geduld...' : mode === 'login' ? 'Inloggen' : 'Account aanmaken'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.helperBtn} onPress={onResendConfirmation}>
-          <Text style={styles.helperBtnText}>Bevestigingsmail opnieuw sturen</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.helperText}>
-          Geen bevestigingsmail ontvangen? Gebruik dezelfde e-mail als waarmee het account is aangemaakt en controleer ook je spammap.
+      <ScrollView contentContainerStyle={styles.formContent}>
+        <Text style={styles.formTitle}>
+          {mode === "login" ? "Inloggen" : "Registreren"}
         </Text>
 
-        <TouchableOpacity style={styles.switchBtn} onPress={() => setMode(mode === 'login' ? 'register' : 'login')}>
-          <Text style={styles.switchText}>
-            {mode === 'login' ? 'Nog geen account? Registreren' : 'Heb je al een account? Inloggen'}
+        {mode === "register" ? (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Naam"
+              placeholderTextColor="#9aa0a6"
+              value={regName}
+              onChangeText={setRegName}
+              autoCapitalize="words"
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Gebruikersnaam"
+              placeholderTextColor="#9aa0a6"
+              value={regUsername}
+              onChangeText={setRegUsername}
+              autoCapitalize="none"
+            />
+          </>
+        ) : null}
+
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          placeholderTextColor="#9aa0a6"
+          value={mode === "login" ? loginEmail : regEmail}
+          onChangeText={mode === "login" ? setLoginEmail : setRegEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Wachtwoord"
+          placeholderTextColor="#9aa0a6"
+          secureTextEntry={mode === "login" ? !showLoginPass : !showRegPass}
+          value={mode === "login" ? loginPassword : regPassword}
+          onChangeText={mode === "login" ? setLoginPassword : setRegPassword}
+          autoCapitalize="none"
+        />
+
+        <TouchableOpacity
+          style={styles.linkButton}
+          onPress={() =>
+            mode === "login"
+              ? setShowLoginPass((prev) => !prev)
+              : setShowRegPass((prev) => !prev)
+          }
+        >
+          <Text style={styles.linkText}>
+            {mode === "login"
+              ? showLoginPass
+                ? "Wachtwoord verbergen"
+                : "Wachtwoord tonen"
+              : showRegPass
+                ? "Wachtwoord verbergen"
+                : "Wachtwoord tonen"}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.backBtn} onPress={() => setMode('landing')}>
-          <Text style={styles.backBtnText}>← Terug naar welkom</Text>
+        {mode === "register" ? (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Herhaal wachtwoord"
+              placeholderTextColor="#9aa0a6"
+              secureTextEntry={!showRegPass2}
+              value={regPassword2}
+              onChangeText={setRegPassword2}
+              autoCapitalize="none"
+            />
+
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => setShowRegPass2((prev) => !prev)}
+            >
+              <Text style={styles.linkText}>
+                {showRegPass2
+                  ? "Herhaal-wachtwoord verbergen"
+                  : "Herhaal-wachtwoord tonen"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.termsRow}
+              onPress={() => setAgreed((prev) => !prev)}
+            >
+              <View
+                style={[styles.checkBox, agreed ? styles.checkBoxActive : null]}
+              />
+              <Text style={styles.termsText}>
+                Ik ga akkoord met de gebruiksvoorwaarden
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.primary, busy ? styles.buttonDisabled : null]}
+          onPress={mode === "login" ? onLogin : onRegister}
+          disabled={busy}
+        >
+          <Text style={styles.primaryText}>
+            {busy
+              ? "Even geduld..."
+              : mode === "login"
+                ? "Inloggen"
+                : "Registreren"}
+          </Text>
+        </TouchableOpacity>
+
+        {mode === "login" ? (
+          <TouchableOpacity
+            style={[styles.secondary, busy ? styles.buttonDisabled : null]}
+            onPress={onGoogleLogin}
+            disabled={busy}
+          >
+            <Text style={styles.secondaryText}>Verder met Google</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <TouchableOpacity
+          style={styles.linkButton}
+          onPress={() => setMode(mode === "login" ? "register" : "login")}
+        >
+          <Text style={styles.linkText}>
+            {mode === "login"
+              ? "Nog geen account? Registreer"
+              : "Al een account? Log in"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.linkButton}
+          onPress={() => setMode("landing")}
+        >
+          <Text style={styles.linkText}>Terug naar start</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -300,152 +357,43 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0a0a' },
-  container: { flex: 1, backgroundColor: '#0a0a0a' },
-  content: { paddingBottom: 30 },
-  hero: {
-    margin: 16,
-    marginTop: 30,
-    borderRadius: 20,
-    padding: 18,
-    backgroundColor: '#141414',
-    borderWidth: 1,
-    borderColor: '#2d2d2d',
-    overflow: 'hidden',
-  },
-  banner: { width: '100%', height: 130, marginBottom: 10 },
-  title: { fontSize: 27, color: '#C9A84C', fontWeight: '900', marginBottom: 6 },
-  subtitle: { color: 'rgba(255,255,255,0.76)', fontSize: 14, lineHeight: 22, paddingRight: 78 },
-  cornerImage: {
-    position: 'absolute',
-    right: 12,
-    bottom: 12,
-    width: 62,
-    height: 62,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#C9A84C',
-  },
-  card: {
-    backgroundColor: '#151515',
-    marginHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    padding: 16,
-    marginBottom: 12,
-  },
-  cardHeading: { color: '#C9A84C', fontSize: 16, fontWeight: '800', marginBottom: 10 },
-  item: { color: 'rgba(255,255,255,0.78)', fontSize: 14, marginBottom: 8 },
-  primary: {
-    marginHorizontal: 16,
-    marginBottom: 10,
-    backgroundColor: Ajax.red,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '900' },
-  secondary: {
-    marginHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#C9A84C',
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  secondaryText: { color: '#C9A84C', fontSize: 16, fontWeight: '900' },
-  formContent: { paddingBottom: 30, paddingTop: 20 },
-  formHeader: { alignItems: 'center', marginBottom: 10 },
-  authLogo: { width: 94, height: 94, marginBottom: 6 },
-  formTitle: { color: '#C9A84C', fontSize: 25, fontWeight: '900' },
-  formSub: { color: 'rgba(255,255,255,0.6)', fontSize: 13 },
-  debugCard: {
-    backgroundColor: '#101010',
-    marginHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#2c2c2c',
-    padding: 12,
-    marginBottom: 12,
-  },
-  debugTitle: {
-    color: '#C9A84C',
-    fontSize: 12,
-    fontWeight: '800',
-    marginBottom: 6,
-  },
-  debugLine: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  label: { color: '#C9A84C', fontSize: 13, fontWeight: '700', marginTop: 10, marginBottom: 6 },
+  loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, backgroundColor: "#000" },
+  content: { padding: 20 },
+  hero: { marginBottom: 20 },
+  banner: { width: "100%", height: 120 },
+  title: { color: "#fff", fontSize: 22 },
+  subtitle: { color: "#ccc" },
+  cornerImage: { width: 60, height: 60 },
+  primary: { backgroundColor: Ajax.red, padding: 15, marginTop: 10 },
+  primaryText: { color: "#fff", textAlign: "center" },
+  secondary: { borderWidth: 1, padding: 15, marginTop: 10 },
+  secondaryText: { color: "#fff", textAlign: "center" },
+  formContent: { padding: 20 },
+  formTitle: { color: "#fff", fontSize: 20, marginBottom: 10 },
+  buttonDisabled: { opacity: 0.6 },
   input: {
-    backgroundColor: '#2a2a2a',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    color: '#fff',
-    fontSize: 14,
-  },
-  passwordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#2a2a2a',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
-  },
-  passwordInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  eyeBtn: { paddingHorizontal: 12, paddingVertical: 12 },
-  eyeText: { fontSize: 16 },
-  termsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#C9A84C',
-    marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxActive: { backgroundColor: '#C9A84C' },
-  checkText: { color: '#000', fontSize: 13, fontWeight: '900' },
-  termsText: { color: 'rgba(255,255,255,0.72)', fontSize: 12, flex: 1 },
-  linkText: { color: '#C9A84C', fontWeight: '700' },
-  disabled: { opacity: 0.7 },
-  helperBtn: {
-    marginHorizontal: 16,
-    marginTop: 2,
-    marginBottom: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#3a3a3a',
-    backgroundColor: '#171717',
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  helperBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  helperText: {
-    marginHorizontal: 20,
+    backgroundColor: "#222",
+    color: "#fff",
     marginBottom: 10,
-    color: 'rgba(255,255,255,0.58)',
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
+    padding: 10,
   },
-  switchBtn: { marginTop: 4, alignItems: 'center' },
-  switchText: { color: '#C9A84C', fontSize: 13, fontWeight: '700' },
-  backBtn: { marginTop: 10, alignItems: 'center' },
-  backBtnText: { color: 'rgba(255,255,255,0.56)', fontSize: 12 },
+  linkButton: { marginTop: 8 },
+  linkText: { color: "#fff", textAlign: "center" },
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  checkBox: {
+    width: 18,
+    height: 18,
+    borderWidth: 1,
+    borderColor: "#fff",
+    marginRight: 10,
+    backgroundColor: "transparent",
+  },
+  checkBoxActive: { backgroundColor: Ajax.red, borderColor: Ajax.red },
+  termsText: { color: "#fff", flex: 1 },
 });

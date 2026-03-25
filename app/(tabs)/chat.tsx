@@ -110,7 +110,7 @@ function mergeGroups(groupIds: string[]) {
 }
 
 export default function ChatScreen() {
-  const { user, entitlements, sendChatMessage, blockedUsers, blockUser, unblockUser } = useAppContext();
+  const { user, profile, entitlements, sendChatMessage, blockedUsers, blockUser, unblockUser } = useAppContext();
   const insets = useSafeAreaInsets();
   const isDark = useColorScheme() === 'dark';
   const styles = useMemo(() => createStyles(isDark), [isDark]);
@@ -345,8 +345,11 @@ export default function ChatScreen() {
       seen.add(item.user_id);
       ids.push(item.user_id);
     }
+    if (user?.id && !seen.has(user.id)) {
+      ids.unshift(user.id);
+    }
     return ids;
-  }, [visibleMessages]);
+  }, [visibleMessages, user?.id]);
   const selectedChatter = selectedChatterId ? chatterProfiles[selectedChatterId] : null;
 
   useEffect(() => {
@@ -393,11 +396,56 @@ export default function ChatScreen() {
           };
         }
       });
+      if (user?.id) {
+        const own = map[user.id] ?? {
+          id: user.id,
+          display_name: null,
+          username: null,
+          about_me: null,
+          is_vip: null,
+          avatar_url: null,
+        };
+        map[user.id] = {
+          ...own,
+          display_name: profile?.displayName?.trim() || own.display_name,
+          username: profile?.username?.trim() || own.username,
+          about_me: profile?.aboutMe?.trim() || own.about_me,
+          avatar_url: profile?.avatarUrl?.trim() || own.avatar_url,
+        };
+      }
       setChatterProfiles(map);
     };
 
     void loadChatterProfiles();
-  }, [chatterIds]);
+  }, [chatterIds, profile?.aboutMe, profile?.avatarUrl, profile?.displayName, profile?.username, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const nextDisplay = profile?.displayName?.trim() || null;
+    const nextUsername = profile?.username?.trim() || null;
+    const nextAbout = profile?.aboutMe?.trim() || null;
+
+    setChatterProfiles((prev) => {
+      const current = prev[user.id];
+      if (!current) return prev;
+
+      const hasChanged =
+        (nextDisplay && nextDisplay !== current.display_name) ||
+        (nextUsername && nextUsername !== current.username) ||
+        (nextAbout && nextAbout !== current.about_me);
+
+      if (!hasChanged) return prev;
+      return {
+        ...prev,
+        [user.id]: {
+          ...current,
+          display_name: nextDisplay ?? current.display_name,
+          username: nextUsername ?? current.username,
+          about_me: nextAbout ?? current.about_me,
+        },
+      };
+    });
+  }, [profile?.aboutMe, profile?.displayName, profile?.username, user?.id]);
 
   const onToggleBlockUser = async (targetUserId: string) => {
     if (!user || !targetUserId || targetUserId === 'system' || targetUserId === user.id) return;
@@ -542,9 +590,16 @@ export default function ChatScreen() {
               contentContainerStyle={styles.chatterList}
               renderItem={({ item }) => {
                 const chatter = chatterProfiles[item];
-                const display = chatter?.display_name?.trim() || chatter?.username?.trim() || item.slice(0, 8);
+                const isCurrentUser = item === user?.id;
+                const display =
+                  (isCurrentUser ? profile?.displayName?.trim() : null) ||
+                  (isCurrentUser ? profile?.username?.trim() : null) ||
+                  chatter?.display_name?.trim() ||
+                  chatter?.username?.trim() ||
+                  item.slice(0, 8);
                 const initial = display.charAt(0).toUpperCase() || '?';
-                const avatarUri = chatter?.avatar_url?.trim() || null;
+                const avatarUri =
+                  (isCurrentUser ? profile?.avatarUrl?.trim() : null) || chatter?.avatar_url?.trim() || null;
 
                 return (
                   <TouchableOpacity

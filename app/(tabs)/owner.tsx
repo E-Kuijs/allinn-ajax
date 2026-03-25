@@ -203,15 +203,19 @@ export default function OwnerTabScreen() {
   useEffect(() => {
     const loadPopupData = async () => {
       if (!user?.id) return;
-      const [cooldownRaw, favoritesRaw] = await Promise.all([
+      const [cooldownRaw, favoritesRaw, senderNameRaw] = await Promise.all([
         AsyncStorage.getItem(`fan-popup-cooldown:${user.id}`),
         AsyncStorage.getItem(`fan-popup-favorites:${user.id}`),
+        AsyncStorage.getItem(`fan-popup-sender-name:${user.id}`),
       ]);
       const until = Number(cooldownRaw ?? 0);
       if (Number.isFinite(until) && until > Date.now()) {
         setFanPopupCooldownUntil(until);
       } else {
         setFanPopupCooldownUntil(0);
+      }
+      if (senderNameRaw?.trim()) {
+        setFanPopupName(senderNameRaw.trim());
       }
 
       if (!favoritesRaw) {
@@ -831,10 +835,20 @@ export default function OwnerTabScreen() {
       return;
     }
 
+    const senderName =
+      fanPopupName.trim() ||
+      profile?.displayName?.trim() ||
+      profile?.username?.trim() ||
+      '';
+    if (!senderName) {
+      Alert.alert('Naam ontbreekt', 'Vul eerst een afzendernaam in.');
+      return;
+    }
+
     setFanPopupSending(true);
     const res = await sendPopupToUser({
       targetUserId: fanPopupSelected.id,
-      title: fanPopupName,
+      title: senderName,
       body: fanPopupMessage,
     });
     setFanPopupSending(false);
@@ -844,6 +858,8 @@ export default function OwnerTabScreen() {
       return;
     }
 
+    setFanPopupName(senderName);
+    await AsyncStorage.setItem(`fan-popup-sender-name:${user.id}`, senderName);
     const nextUntil = Date.now() + FAN_POPUP_COOLDOWN_MS;
     setFanPopupCooldownUntil(nextUntil);
     setFanPopupNow(Date.now());
@@ -1108,9 +1124,9 @@ export default function OwnerTabScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Developer Beheer</Text>
+        <Text style={styles.cardTitle}>Builder Beheer</Text>
         <Text style={styles.cardBody}>
-          Dit tabblad is alleen zichtbaar voor jouw developer-account. De gebruikersknoppen blijven ongewijzigd.
+          Dit tabblad is alleen zichtbaar voor jouw builder-account. De gebruikersknoppen blijven ongewijzigd.
         </Text>
 
         <Text style={styles.fieldLabel}>INFO TIFO / SUP HOME URL (gedeeld voor alle users)</Text>

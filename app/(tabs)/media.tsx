@@ -731,13 +731,6 @@ export default function MediaScreen() {
         <View style={styles.quickGrid}>
           <TouchableOpacity
             style={[styles.linkBtn, styles.quickGridBtn, actionsDisabled && styles.disabledBtn]}
-            onPress={() => void openLink(content.webshopFsideUrl)}
-            disabled={actionsDisabled}
-          >
-            <Text style={[styles.linkBtnText, styles.quickGridBtnText]}>F-Side Shop</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.linkBtn, styles.quickGridBtn, actionsDisabled && styles.disabledBtn]}
             onPress={() => void openLink(content.webshopAfcaUrl)}
             disabled={actionsDisabled}
           >

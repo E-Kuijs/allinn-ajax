@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { Ajax } from '@/constants/theme';
 import { MembershipBadge } from '@/components/membership-badge';
 import { useAppContext } from '@/src/core/app-context';
 
 export default function AccountScreen() {
+  const router = useRouter();
   const { profile, avatarUri, entitlements, headerText, saveHeaderText } = useAppContext();
   const [text, setText] = useState(headerText);
   const [saving, setSaving] = useState(false);
+  const privacyUrl = 'https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/privacy.html';
+  const deleteAccountUrl = 'https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/delete-account.html';
 
   useEffect(() => {
     setText(headerText);
@@ -30,21 +34,38 @@ export default function AccountScreen() {
     Alert.alert('Opgeslagen', 'Headertekst is bijgewerkt.');
   };
 
-  const openSafetySettings = async () => {
-    const ok = await Linking.canOpenURL('app-settings:');
-    if (!ok) {
-      Alert.alert('Niet beschikbaar', 'Veiligheidsinstellingen konden niet worden geopend.');
-      return;
+  const openExternalUrl = async (url: string, label: string) => {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (!canOpen) {
+        Alert.alert('Niet beschikbaar', `${label} kon niet worden geopend op dit toestel.`);
+        return false;
+      }
+      await Linking.openURL(url);
+      return true;
+    } catch {
+      Alert.alert('Niet beschikbaar', `${label} kon niet worden geopend op dit toestel.`);
+      return false;
     }
-    await Linking.openSettings();
   };
 
-  const openTerms = async () => {
-    await Linking.openURL('https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/terms.html');
+  const openSafetySettings = async () => {
+    try {
+      await Linking.openSettings();
+    } catch {
+      const openedFallback = await openExternalUrl('app-settings:', 'Veiligheidsinstellingen');
+      if (!openedFallback) {
+        Alert.alert('Niet beschikbaar', 'Open handmatig Instellingen op je toestel.');
+      }
+    }
+  };
+
+  const openTerms = () => {
+    router.push('/legal');
   };
 
   const openPrivacy = async () => {
-    await Linking.openURL('https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/privacy.html');
+    await openExternalUrl(privacyUrl, 'Privacybeleid');
   };
 
   const openCommunityRules = () => {
@@ -54,8 +75,26 @@ export default function AccountScreen() {
     );
   };
 
-  const requestDeleteAccount = async () => {
-    await Linking.openURL('https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/delete-account.html');
+  const startDeleteAccountRequest = async () => {
+    const subject = encodeURIComponent('Verzoek account verwijderen');
+    const body = encodeURIComponent(
+      `Naam: ${profile?.displayName ?? 'Onbekend'}\nUsername: ${profile?.username ?? '-'}\nE-mail: ${profile?.email ?? '-'}\n\nIk wil mijn account laten verwijderen.`
+    );
+    const mailtoUrl = `mailto:all.inn.media.contact@gmail.com?subject=${subject}&body=${body}`;
+    const openedMail = await openExternalUrl(mailtoUrl, 'Mailapp');
+    if (openedMail) return;
+    await openExternalUrl(deleteAccountUrl, 'Verwijderpagina');
+  };
+
+  const requestDeleteAccount = () => {
+    Alert.alert(
+      'Account verwijderen',
+      'We sturen je verwijderverzoek via e-mail door zodat dit veilig wordt afgehandeld.',
+      [
+        { text: 'Annuleren', style: 'cancel' },
+        { text: 'Verzoek starten', style: 'destructive', onPress: () => void startDeleteAccountRequest() },
+      ]
+    );
   };
 
   return (
@@ -106,8 +145,8 @@ export default function AccountScreen() {
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => void openSafetySettings()}>
           <Text style={styles.secondaryBtnText}>Veiligheidsinstellingen</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={() => void openTerms()}>
-          <Text style={styles.secondaryBtnText}>Licentie & Terms</Text>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={openTerms}>
+          <Text style={styles.secondaryBtnText}>Licentie en voorwaarden</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => void openPrivacy()}>
           <Text style={styles.secondaryBtnText}>Privacy</Text>

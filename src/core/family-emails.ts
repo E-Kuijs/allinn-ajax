@@ -34,6 +34,14 @@ export const vipSpecialEmails: string[] = [
   '',
 ];
 
+// Ondersteunt specifieke accounts waarbij alleen het deel voor @ vastligt.
+// Hiermee blijven speciale VIP/golden stars werken, ook bij variatie in domein.
+const vipSpecialEmailPrefixPatterns: string[] = [
+  'patries2611@',
+  'ikhaatrood@',
+  'ajaxvak428@',
+];
+
 // Vaste persoonlijke premium/testmail voor familie en vrienden.
 // Houd deze inhoud gelijk aan scripts/premium-email.ps1.
 export const premiumFamilyEmailSubject = 'ALL-INN AJAX premium update en testuitnodiging';
@@ -110,6 +118,9 @@ export function getEmailVipRole(email?: string | null): 'developer' | 'special' 
       .filter((value) => isUsableFamilyEmail(value))
   );
   if (developerSet.has(normalized)) return 'developer';
+
+  const prefixMatch = vipSpecialEmailPrefixPatterns.some((prefix) => normalized.startsWith(prefix));
+  if (prefixMatch) return 'special';
 
   const specials = vipSpecialEmails
     .map((value) => normalizeEmail(value))

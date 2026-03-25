@@ -1,16 +1,16 @@
 # PLAY CONSOLE SUBMIT HANDOFF
 
-Laatst bijgewerkt: 2026-03-16
+Laatst bijgewerkt: 2026-03-25
 
 ## Wat al klaarstaat
 
 - Android production build klaar
 - AAB:
-  `https://expo.dev/artifacts/eas/8mqMDrLsPU6xajQYRVtNuk.aab`
+  `https://expo.dev/artifacts/eas/7dabtdytaGYoFfdwmjeqTG.aab`
 - EAS build ID:
-  `3b8a1f1d-b572-4e33-857e-a9dbcbfb930b`
+  `32496a36-0487-42a9-b147-f87c4180ec3e`
 - Release notes:
-  `GOOGLE-PLAY-RELEASE-NOTES-2026-03-16.md`
+  `GOOGLE-PLAY-RELEASE-NOTES-2026-03-25.md`
 - `eas.json` staat op submit naar:
   - `track: production`
   - `releaseStatus: draft`
@@ -45,7 +45,7 @@ Dat betekent:
 3. Ga naar `Productie`
 4. Kies `Nieuwe release`
 5. Upload de AAB
-6. Gebruik de tekst uit `GOOGLE-PLAY-RELEASE-NOTES-2026-03-16.md`
+6. Gebruik de tekst uit `GOOGLE-PLAY-RELEASE-NOTES-2026-03-25.md`
 7. Laat de release als concept of stuur hem naar review
 
 ### Route B - later automatische submit via EAS
@@ -64,3 +64,6 @@ De submit-config is bewust veilig gezet:
 - draft release
 
 Dus zodra de service account key gekoppeld is, kan de upload zonder directe rollout.
+
+
+

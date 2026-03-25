@@ -1,17 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useColorScheme } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Ajax } from '@/constants/theme';
 import { StadiumFlashCard } from '@/components/stadium-flash-card';
 import { useAppContext } from '@/src/core/app-context';
-import { supabase } from '@/src/core/supabaseClient';
-
-const WIN_ACTION_RULES_TEXT = `Deze winactie is gratis voor alle premium geregistreerde gebruikers.
-Er is geen aankoop of betaling nodig om deel te nemen.
-De winnaar wordt willekeurig gekozen uit alle premium geregistreerde gebruikers.
-Deze winactie wordt georganiseerd door All-Inn Media en staat los van Google Play.
-Door deel te nemen aan de winactie kan de winnaar worden gevraagd om mee te werken aan een kort interview of foto voor de app. Deelname blijft vrijwillig.`;
 const FAN_POPUP_COOLDOWN_MS = 5 * 60 * 1000;
 const POPUP_MUTE_OPTIONS = [15, 23, 45, 60] as const;
 type PaymentMethodPreference = 'pin' | 'wallet' | 'both';
@@ -19,15 +12,6 @@ const PAYMENT_METHOD_LABEL: Record<PaymentMethodPreference, string> = {
   pin: 'Pin / kaart',
   wallet: 'Wallet',
   both: 'Wallet + pin',
-};
-
-type LotteryEntryRow = {
-  milestoneId: string;
-  targetPaidMembers: number;
-  ticketNumber: number | null;
-  winnerTicketNumber: number | null;
-  winnerUserId: string | null;
-  participantsCount: number | null;
 };
 
 type PopupTargetOption = {
@@ -56,12 +40,6 @@ export default function LuxeTabScreen() {
   } = useAppContext();
   const isDark = useColorScheme() === 'dark';
   const styles = useMemo(() => createStyles(isDark), [isDark]);
-  const [rulesOpen, setRulesOpen] = useState(false);
-  const [lotteryRows, setLotteryRows] = useState<LotteryEntryRow[]>([]);
-  const [lotteryLoading, setLotteryLoading] = useState(false);
-  const [paidPremiumMembers, setPaidPremiumMembers] = useState<number | null>(null);
-  const [nextLotteryTarget, setNextLotteryTarget] = useState<number | null>(1000);
-  const [remainingToTarget, setRemainingToTarget] = useState<number | null>(null);
   const [fanPopupName, setFanPopupName] = useState('');
   const [fanPopupMessage, setFanPopupMessage] = useState('Haal gelijk BIER');
   const [fanPopupQuery, setFanPopupQuery] = useState('');
@@ -74,14 +52,6 @@ export default function LuxeTabScreen() {
   const [fanPopupNow, setFanPopupNow] = useState(Date.now());
   const [paymentPreference, setPaymentPreference] = useState<PaymentMethodPreference>('pin');
   const [pinOnlyMode, setPinOnlyMode] = useState(false);
-
-  const shownWinner = content.lotteryWinnerName?.trim() || 'Nog geen winnaar bekend';
-  const shownInterview = content.lotteryWinnerInterview?.trim() || 'Interview volgt binnenkort.';
-  const lotteryProgressPct = useMemo(() => {
-    if (paidPremiumMembers === null || !nextLotteryTarget || nextLotteryTarget <= 0) return 0;
-    const raw = (paidPremiumMembers / nextLotteryTarget) * 100;
-    return Math.max(0, Math.min(100, raw));
-  }, [nextLotteryTarget, paidPremiumMembers]);
 
   useEffect(() => {
     if (fanPopupName.trim()) return;
@@ -158,160 +128,6 @@ export default function LuxeTabScreen() {
     const timer = setInterval(() => setFanPopupNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [fanPopupCooldownUntil]);
-
-  useEffect(() => {
-    let active = true;
-    const loadLotteryNumbers = async () => {
-      if (!user?.id) {
-        setLotteryRows([]);
-        setPaidPremiumMembers(null);
-        setRemainingToTarget(null);
-        setLotteryLoading(false);
-        return;
-      }
-
-      setLotteryLoading(true);
-      const refreshResult = await supabase.rpc('refresh_lottery_milestones_and_draw');
-      let currentPaidMembers: number | null = null;
-      let upcomingTarget: number | null = null;
-      let remaining: number | null = null;
-
-      if (!refreshResult.error && refreshResult.data && typeof refreshResult.data === 'object') {
-        const data = refreshResult.data as Record<string, unknown>;
-        const paidRaw = Number(data.paid_members);
-        const nextTargetRaw = Number(data.next_target_paid_members);
-        const remainingRaw = Number(data.remaining_to_next_target);
-
-        currentPaidMembers = Number.isFinite(paidRaw) ? paidRaw : null;
-        upcomingTarget = Number.isFinite(nextTargetRaw) ? nextTargetRaw : null;
-        remaining = Number.isFinite(remainingRaw) ? remainingRaw : null;
-      }
-
-      if (upcomingTarget === null) {
-        const upcomingRes = await supabase
-          .from('lottery_milestones')
-          .select('target_paid_members')
-          .eq('is_reached', false)
-          .order('target_paid_members', { ascending: true })
-          .limit(1)
-          .maybeSingle();
-
-        if (!upcomingRes.error && upcomingRes.data?.target_paid_members) {
-          upcomingTarget = Number(upcomingRes.data.target_paid_members);
-        }
-      }
-
-      if (currentPaidMembers !== null && upcomingTarget !== null) {
-        remaining = Math.max(upcomingTarget - currentPaidMembers, 0);
-      }
-
-      if (active) {
-        setPaidPremiumMembers(currentPaidMembers);
-        setNextLotteryTarget(upcomingTarget ?? 1000);
-        setRemainingToTarget(remaining);
-      }
-
-      const entriesRes = await supabase
-        .from('lottery_entries')
-        .select('milestone_id,ticket_number,created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (entriesRes.error || !entriesRes.data?.length) {
-        if (active) {
-          setLotteryRows([]);
-          setLotteryLoading(false);
-        }
-        return;
-      }
-
-      const entries = entriesRes.data as {
-        milestone_id: string | null;
-        ticket_number: number | null;
-      }[];
-
-      const milestoneIds = Array.from(
-        new Set(entries.map((entry) => entry.milestone_id).filter((id): id is string => !!id))
-      );
-
-      if (!milestoneIds.length) {
-        if (active) {
-          setLotteryRows([]);
-          setLotteryLoading(false);
-        }
-        return;
-      }
-
-      const milestonesRes = await supabase
-        .from('lottery_milestones')
-        .select('id,target_paid_members')
-        .in('id', milestoneIds);
-
-      const drawsRes = await supabase
-        .from('lottery_draws')
-        .select('milestone_id,winner_ticket_number,winner_user_id,participants_count')
-        .in('milestone_id', milestoneIds);
-
-      const milestoneMap = new Map<string, number>();
-      if (!milestonesRes.error && milestonesRes.data) {
-        (milestonesRes.data as { id: string; target_paid_members: number | null }[]).forEach((row) => {
-          milestoneMap.set(row.id, Number(row.target_paid_members ?? 1000));
-        });
-      }
-
-      const drawMap = new Map<
-        string,
-        {
-          winnerTicketNumber: number | null;
-          winnerUserId: string | null;
-          participantsCount: number | null;
-        }
-      >();
-      if (!drawsRes.error && drawsRes.data) {
-        (
-          drawsRes.data as {
-            milestone_id: string | null;
-            winner_ticket_number: number | null;
-            winner_user_id: string | null;
-            participants_count: number | null;
-          }[]
-        ).forEach((row) => {
-          if (!row.milestone_id) return;
-          drawMap.set(row.milestone_id, {
-            winnerTicketNumber: row.winner_ticket_number ?? null,
-            winnerUserId: row.winner_user_id ?? null,
-            participantsCount: row.participants_count ?? null,
-          });
-        });
-      }
-
-      const rows = entries
-        .filter(
-          (entry): entry is { milestone_id: string; ticket_number: number | null } => !!entry.milestone_id
-        )
-        .map((entry) => {
-          const draw = drawMap.get(entry.milestone_id);
-          return {
-            milestoneId: entry.milestone_id,
-            targetPaidMembers: milestoneMap.get(entry.milestone_id) ?? 1000,
-            ticketNumber: entry.ticket_number ?? null,
-            winnerTicketNumber: draw?.winnerTicketNumber ?? null,
-            winnerUserId: draw?.winnerUserId ?? null,
-            participantsCount: draw?.participantsCount ?? null,
-          };
-        });
-
-      if (active) {
-        setLotteryRows(rows);
-        setLotteryLoading(false);
-      }
-    };
-
-    void loadLotteryNumbers();
-    return () => {
-      active = false;
-    };
-  }, [user?.id]);
 
   const onOpenPayment = async () => {
     const normalized = normalizeExternalUrl(content.paymentPortalUrl ?? '');
@@ -599,65 +415,6 @@ export default function LuxeTabScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.winnerCard}>
-        <Text style={styles.winnerTitle}>WINNAAR WINACTIE</Text>
-        <Text style={styles.winnerName}>{shownWinner}</Text>
-        <Text style={styles.winnerInterview} numberOfLines={2}>
-          {shownInterview}
-        </Text>
-      </View>
-
-      <View style={styles.lotteryCard}>
-        <Text style={styles.lotteryTitle}>Mijn winactie-nummers</Text>
-        <View style={styles.lotteryMeter}>
-          <Text style={styles.lotteryMeterTitle}>
-            Leden teller: {paidPremiumMembers ?? 0} / {nextLotteryTarget ?? 1000}
-          </Text>
-          {remainingToTarget !== null ? (
-            <Text style={styles.lotteryMeterSub}>
-              {remainingToTarget === 0
-                ? 'Winactie actief: winnaar wordt automatisch gekozen.'
-                : `Nog ${remainingToTarget} leden tot de trekking.`}
-            </Text>
-          ) : null}
-          <View style={styles.lotteryProgressTrack}>
-            <View style={[styles.lotteryProgressFill, { width: `${lotteryProgressPct}%` }]} />
-          </View>
-        </View>
-        {lotteryLoading ? (
-          <Text style={styles.infoText}>Winactiegegevens laden...</Text>
-        ) : lotteryRows.length === 0 ? (
-          <Text style={styles.infoText}>
-            Je deelnamenummer wordt automatisch klaargezet voor de volgende winactie.
-          </Text>
-        ) : (
-          <View style={styles.lotteryList}>
-            {lotteryRows.map((row) => {
-              const isWinner = !!row.winnerUserId && row.winnerUserId === user?.id;
-              return (
-                <View key={row.milestoneId} style={styles.lotteryItem}>
-                  <Text style={styles.lotteryLine}>Mijlpaal: {row.targetPaidMembers} leden</Text>
-                  <Text style={styles.lotteryLine}>
-                    Jouw deelnamenummer: {row.ticketNumber ? `#${row.ticketNumber}` : 'wordt toegewezen'}
-                  </Text>
-                  <Text style={styles.lotteryLine}>
-                    Winnaar: {row.winnerTicketNumber ? `#${row.winnerTicketNumber}` : 'nog niet getrokken'}
-                  </Text>
-                  {row.participantsCount ? (
-                    <Text style={styles.lotterySubLine}>Deelnemers: {row.participantsCount}</Text>
-                  ) : null}
-                  {isWinner ? <Text style={styles.lotteryWinner}>Jij bent de winnaar van deze winactie!</Text> : null}
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </View>
-
-      <TouchableOpacity style={styles.secondaryWideBtn} onPress={() => setRulesOpen(true)}>
-        <Text style={styles.secondaryWideBtnText}>Uitleg winactie</Text>
-      </TouchableOpacity>
-
       <View style={styles.paymentCard}>
         <Text style={styles.paymentTitle}>Betaalmethode</Text>
         <Text style={styles.paymentHint}>
@@ -723,17 +480,6 @@ export default function LuxeTabScreen() {
 
       <StadiumFlashCard />
 
-      <Modal visible={rulesOpen} transparent animationType="fade" onRequestClose={() => setRulesOpen(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Uitleg winactie</Text>
-            <Text style={styles.modalText}>{WIN_ACTION_RULES_TEXT}</Text>
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setRulesOpen(false)}>
-              <Text style={styles.modalCloseBtnText}>Sluiten</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 }

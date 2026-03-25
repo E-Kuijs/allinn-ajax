@@ -1,45 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Ajax } from '@/constants/theme';
-import { useAppContext } from '@/src/core/app-context';
-import { supabase } from '@/src/core/supabaseClient';
+const FIXED_AJAX_MONTHLY_PRICE = 1.49;
 
 function toEur(amount: number): string {
   return `EUR ${amount.toFixed(2).replace('.', ',')}`;
 }
 
 export default function PremiumPricingScreen() {
-  const { settings } = useAppContext();
-
-  const fallbackMonthlyPrice = useMemo(() => settings.monthlyPriceEur, [settings.monthlyPriceEur]);
-  const [monthlyPrice, setMonthlyPrice] = useState(fallbackMonthlyPrice);
-
-  useEffect(() => {
-    setMonthlyPrice(fallbackMonthlyPrice);
-  }, [fallbackMonthlyPrice]);
-
-  useEffect(() => {
-    let active = true;
-    const loadPlanPrices = async () => {
-      const res = await supabase
-        .from('subscription_plans')
-        .select('code,price_eur')
-        .eq('code', 'PREMIUM_MONTH')
-        .maybeSingle();
-
-      if (!active || res.error || !res.data) return;
-
-      const price = Number((res.data as { price_eur: number | null }).price_eur ?? 0);
-      if (!Number.isFinite(price) || price <= 0) return;
-      setMonthlyPrice(price);
-    };
-
-    void loadPlanPrices();
-    return () => {
-      active = false;
-    };
-  }, [fallbackMonthlyPrice]);
+  const monthlyPrice = FIXED_AJAX_MONTHLY_PRICE;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -64,15 +33,13 @@ export default function PremiumPricingScreen() {
         <Text style={styles.cardTitle}>Wat krijg je met Premium</Text>
         <Text style={styles.line}>- Volledige toegang tot chat en marktplaats functies</Text>
         <Text style={styles.line}>- Volledige toegang tot media links en extra content</Text>
-        <Text style={styles.line}>- Extra winactie-updates en community-acties in de app</Text>
         <Text style={styles.line}>- Doorlopende verbeteringen en nieuwe fan functies</Text>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Transparantie</Text>
         <Text style={styles.subText}>
-          Prijzen kunnen later worden aangepast. De actuele maandprijs in dit scherm wordt uit de app-instellingen en
-          plannen gehaald.
+          Voor ALL-INN AJAX gebruiken we nu een vaste prijs van EUR 1,49 per maand.
         </Text>
       </View>
     </ScrollView>

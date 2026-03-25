@@ -22,7 +22,7 @@ values (
   1,
   date '2026-03-06',
   14,
-  3.24,
+  1.49,
   15,
   20,
   30,
@@ -107,9 +107,9 @@ insert into public.subscription_plans (
   is_active
 )
 values
-  ('PREMIUM_MONTH', 'Premium maand', 3.24, 1, 0, false, true),
-  ('PREMIUM_6M', 'Premium 6 maanden', 19.44, 6, 15, false, true),
-  ('PREMIUM_12M', 'Premium 12 maanden', 38.88, 12, 20, false, true),
+  ('PREMIUM_MONTH', 'Premium maand', 1.49, 1, 0, false, true),
+  ('PREMIUM_6M', 'Premium 6 maanden', 7.60, 6, 15, false, true),
+  ('PREMIUM_12M', 'Premium 12 maanden', 14.30, 12, 20, false, true),
   ('PREMIUM_LIFETIME', 'Premium lifetime', 99.00, null, 30, true, true)
 on conflict (code) do update
 set

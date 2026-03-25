@@ -326,7 +326,7 @@ export default function EventsScreen() {
           activeOpacity={0.9}
         >
           <Text style={[styles.followLiveBtnText, followLiveScores ? styles.followLiveBtnTextOn : styles.followLiveBtnTextOff]}>
-            Live scores: {followLiveScores ? 'AAN' : 'UIT'}
+            Live score meldingen: {followLiveScores ? 'AAN' : 'UIT'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity

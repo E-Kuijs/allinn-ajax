@@ -1,7 +1,9 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Platform, Vibration } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 import { defaultContent, defaultProfanityWords, defaultSettings } from '@/src/core/defaults';
 import { computeEntitlements, getLocalDateKey, toTier } from '@/src/core/entitlements';
@@ -22,6 +24,8 @@ import {
   Profile,
   UserSocialLinks,
 } from '@/src/core/types';
+
+WebBrowser.maybeCompleteAuthSession();
 
 type AuthPayload = {
   email: string;
@@ -58,6 +62,7 @@ type AppContextValue = {
   favoriteNewsIds: string[];
   favoriteListingIds: string[];
   signIn: (payload: AuthPayload) => Promise<ActionResult>;
+  signInWithGoogle: () => Promise<ActionResult>;
   signUp: (payload: RegisterPayload) => Promise<ActionResult>;
   resendSignupConfirmation: (email: string) => Promise<ActionResult>;
   signOut: () => Promise<void>;
@@ -181,6 +186,36 @@ function isInvalidRefreshTokenError(message?: string): boolean {
   return normalized.includes('refresh token') && (normalized.includes('not found') || normalized.includes('invalid'));
 }
 
+function getQueryParamsFromUrl(url: string) {
+  const params: Record<string, string> = {};
+
+  try {
+    const parsedUrl = new URL(url);
+
+    for (const [key, value] of parsedUrl.searchParams.entries()) {
+      params[key] = value;
+    }
+
+    const hash = parsedUrl.hash?.startsWith('#') ? parsedUrl.hash.slice(1) : parsedUrl.hash;
+
+    if (hash) {
+      const hashParams = new URLSearchParams(hash);
+      for (const [key, value] of hashParams.entries()) {
+        params[key] = value;
+      }
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.log('[getQueryParamsFromUrl] parse error', error);
+    }
+  }
+
+  return {
+    errorCode: params.error_code ?? null,
+    params,
+  };
+}
+
 async function clearSupabaseAuthStorage(): Promise<void> {
   const keys = await AsyncStorage.getAllKeys();
   const authKeys = keys.filter(
@@ -230,7 +265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [settings, membership.tier, profile?.isVip, chatUsage.messagesSent, user?.email, isFoundingPremium]);
 
-  async function syncPushToken(currentUser: User) {
+  const syncPushToken = useCallback(async (currentUser: User) => {
     try {
       const enabledRaw = await AsyncStorage.getItem(PUSH_ENABLED_KEY);
       const pushEnabled = enabledRaw !== '0';
@@ -257,9 +292,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Push-token sync is best effort.
     }
-  }
+  }, []);
 
-  async function loadGlobalState() {
+  const loadGlobalState = useCallback(async () => {
     const [settingsRes, contentRes, profanityRes] = await Promise.all([
       supabase.from('app_settings').select('*').limit(1).maybeSingle(),
       supabase.from('app_content').select('*').limit(1).maybeSingle(),
@@ -318,7 +353,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setProfanityWords(words);
       }
     }
-  }
+  }, []);
 
   const consumeUnreadPopupNotifications = useCallback(async (currentUserId: string, muteUntilOverride?: number) => {
     const popupRes = await supabase
@@ -457,8 +492,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setProfile({
         id: row.id,
         email: currentUser.email,
-        displayName: row.display_name ?? 'Ajax Fan',
-        username: row.username ?? '@ajaxfan',
+        displayName: row.display_name ?? currentUser.user_metadata?.display_name ?? 'Ajax Fan',
+        username: row.username ?? currentUser.user_metadata?.username ?? '@ajaxfan',
         aboutMe: row.about_me ?? '',
         avatarUrl: resolvedAvatar ?? null,
         isAdmin: row.is_admin ?? false,
@@ -478,6 +513,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       };
       setProfile(fallback);
       setAvatarUri(localAvatar ?? null);
+
+      await supabase.from('profiles').upsert({
+        id: currentUser.id,
+        display_name: fallback.displayName,
+        username: fallback.username,
+        about_me: '',
+        is_admin: false,
+        is_vip: false,
+      });
     }
 
     let resolvedTier: Membership['tier'] = 'FREE';
@@ -540,14 +584,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     await consumeUnreadPopupNotifications(currentUser.id, resolvedPopupMuteUntil);
     await syncPushToken(currentUser);
-  }, [consumeUnreadPopupNotifications, settings.firstPaidMemberLimit]);
+  }, [consumeUnreadPopupNotifications, settings.firstPaidMemberLimit, syncPushToken]);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     await loadGlobalState();
     if (user) {
       await loadUserState(user);
     }
-  }
+  }, [loadGlobalState, loadUserState, user]);
 
   useEffect(() => {
     let mounted = true;
@@ -630,7 +674,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [loadUserState]);
+  }, [loadGlobalState, loadUserState]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -647,6 +691,80 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) return { ok: false, message: error.message };
     return { ok: true };
+  }
+
+  async function signInWithGoogle(): Promise<ActionResult> {
+    try {
+      const redirectTo = Linking.createURL('auth/callback');
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: true,
+        },
+      });
+
+      if (error) {
+        return { ok: false, message: error.message };
+      }
+
+      if (!data?.url) {
+        return { ok: false, message: 'Geen Google OAuth URL ontvangen.' };
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+
+      if (result.type !== 'success' || !result.url) {
+        return { ok: false, message: 'Google login is geannuleerd of mislukt.' };
+      }
+
+      const { params, errorCode } = getQueryParamsFromUrl(result.url);
+
+      if (errorCode) {
+        return { ok: false, message: errorCode };
+      }
+
+      const authCode = params.code;
+      const access_token = params.access_token;
+      const refresh_token = params.refresh_token;
+
+      if (authCode) {
+        const { data: exchangeData, error: exchangeError } =
+          await supabase.auth.exchangeCodeForSession(authCode);
+
+        if (exchangeError) {
+          return { ok: false, message: exchangeError.message };
+        }
+
+        if (exchangeData.session?.user) {
+          await loadUserState(exchangeData.session.user);
+        }
+
+        return { ok: true };
+      }
+
+      if (!access_token || !refresh_token) {
+        return { ok: false, message: 'Geen sessietokens ontvangen van Google login.' };
+      }
+
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+
+      if (sessionError) {
+        return { ok: false, message: sessionError.message };
+      }
+
+      if (sessionData.session?.user) {
+        await loadUserState(sessionData.session.user);
+      }
+
+      return { ok: true };
+    } catch (error: any) {
+      return { ok: false, message: error?.message ?? 'Google login mislukt.' };
+    }
   }
 
   async function signUp(payload: RegisterPayload): Promise<ActionResult> {
@@ -695,26 +813,46 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }
 
-  async function resendSignupConfirmation(email: string): Promise<ActionResult> {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) {
-      return { ok: false, message: 'Vul eerst je e-mailadres in.' };
-    }
+  const resendSignupConfirmation = useCallback(
+    async (email: string): Promise<ActionResult> => {
+      const cleanEmail = email.trim().toLowerCase();
 
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: normalizedEmail,
-    });
+      if (!cleanEmail) {
+        return {
+          ok: false,
+          message: 'Vul eerst een e-mailadres in.',
+        };
+      }
 
-    if (error) {
-      return { ok: false, message: error.message };
-    }
+      try {
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email: cleanEmail,
+          options: {
+            emailRedirectTo: 'ajaxnieuws://auth/callback',
+          },
+        });
 
-    return {
-      ok: true,
-      message: 'Bevestigingsmail opnieuw verstuurd. Controleer ook je spammap.',
-    };
-  }
+        if (error) {
+          return {
+            ok: false,
+            message: error.message,
+          };
+        }
+
+        return {
+          ok: true,
+          message: 'Bevestigingsmail opnieuw verstuurd.',
+        };
+      } catch (error: any) {
+        return {
+          ok: false,
+          message: error?.message ?? 'Opnieuw versturen mislukt.',
+        };
+      }
+    },
+    []
+  );
 
   async function signOut(): Promise<void> {
     await supabase.auth.signOut();
@@ -820,7 +958,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       .upsert({ id: user.id, avatar_url: uri }, { onConflict: 'id' });
 
     if (error) {
-      // Als avatar_url nog niet in het schema zit, laten we lokale opslag leidend zijn.
       if (error.message.toLowerCase().includes('avatar_url')) {
         return { ok: true, message: 'Foto lokaal opgeslagen.' };
       }
@@ -883,7 +1020,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function saveWelcomeInfoLinkUrl(url: string): Promise<ActionResult> {
     if (!user) return { ok: false, message: 'Niet ingelogd.' };
-    if (!entitlements.isDeveloper) return { ok: false, message: 'Alleen developer kan deze link aanpassen.' };
+    if (!entitlements.isDeveloper) return { ok: false, message: 'Alleen builder kan deze link aanpassen.' };
 
     const normalized = url.trim();
     const { error } = await supabase
@@ -898,7 +1035,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   async function savePaymentPortalUrl(url: string): Promise<ActionResult> {
     if (!user) return { ok: false, message: 'Niet ingelogd.' };
-    if (!entitlements.isDeveloper) return { ok: false, message: 'Alleen developer kan deze link aanpassen.' };
+    if (!entitlements.isDeveloper) return { ok: false, message: 'Alleen builder kan deze link aanpassen.' };
 
     const normalized = url.trim();
     const { error } = await supabase
@@ -918,7 +1055,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     winnerVideoUrl: string;
   }): Promise<ActionResult> {
     if (!user) return { ok: false, message: 'Niet ingelogd.' };
-    if (!entitlements.isDeveloper) return { ok: false, message: 'Alleen developer kan winnaarcontent aanpassen.' };
+    if (!entitlements.isDeveloper) return { ok: false, message: 'Alleen builder kan winnaarcontent aanpassen.' };
 
     const winnerName = input.winnerName.trim();
     const winnerInterview = input.winnerInterview.trim();
@@ -1086,7 +1223,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     return { ok: false, message: firstAttempt.message ?? 'Onbekende fout.' };
-
   }
 
   async function blockUser(userId: string): Promise<ActionResult> {
@@ -1123,30 +1259,102 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     query: string
   ): Promise<{ ok: boolean; users: PopupTargetUser[]; message?: string }> {
     if (!user) return { ok: false, users: [], message: 'Niet ingelogd.' };
+    const normalizedQuery = query.trim();
 
-    const rpc = await supabase.rpc('search_popup_users', {
-      p_query: query.trim(),
-      p_limit: 20,
-    });
+    if (!normalizedQuery) {
+      return { ok: true, users: [] };
+    }
 
-    if (rpc.error) return { ok: false, users: [], message: rpc.error.message };
+    const normalizedNoAt = normalizedQuery.replace(/^@+/, '').trim();
+    const queryVariants = [...new Set([normalizedQuery, normalizedNoAt, normalizedNoAt ? `@${normalizedNoAt}` : ''])]
+      .map((value) => value.trim())
+      .filter(Boolean);
 
-    const rows = (rpc.data ?? []) as {
-      user_id?: string | null;
-      display_name?: string | null;
-      username?: string | null;
-    }[];
+    const mapRowsToUsers = (
+      rows: {
+        user_id?: string | null;
+        display_name?: string | null;
+        username?: string | null;
+        email?: string | null;
+      }[]
+    ) =>
+      rows
+        .map((row) => ({
+          id: row.user_id?.trim() || '',
+          displayName: row.display_name?.trim() || '',
+          username: row.username?.trim() || '',
+          email: row.email?.trim() || '',
+        }))
+        .filter((row) => !!row.id && row.id !== user.id);
 
-    const users = rows
-      .map((row) => ({
-        id: row.user_id?.trim() || '',
-        displayName: row.display_name?.trim() || '',
-        username: row.username?.trim() || '',
-        email: '',
-      }))
-      .filter((row) => !!row.id);
+    const runSearchRpc = async (rpcName: 'search_popup_users' | 'admin_find_popup_users') => {
+      for (const variant of queryVariants) {
+        const rpc = await supabase.rpc(rpcName, {
+          p_query: variant,
+          p_limit: 20,
+        });
 
-    return { ok: true, users };
+        if (rpc.error) {
+          if (rpcName === 'search_popup_users') {
+            return { users: [] as PopupTargetUser[], error: rpc.error.message };
+          }
+          continue;
+        }
+
+        const usersFromVariant = mapRowsToUsers(
+          (rpc.data ?? []) as {
+            user_id?: string | null;
+            display_name?: string | null;
+            username?: string | null;
+            email?: string | null;
+          }[]
+        );
+        if (usersFromVariant.length) {
+          return { users: usersFromVariant, error: undefined as string | undefined };
+        }
+      }
+
+      return { users: [] as PopupTargetUser[], error: undefined as string | undefined };
+    };
+
+    const directSearch = await runSearchRpc('search_popup_users');
+    if (directSearch.error) return { ok: false, users: [], message: directSearch.error };
+    if (directSearch.users.length) {
+      return { ok: true, users: directSearch.users };
+    }
+
+    const adminFallbackSearch = await runSearchRpc('admin_find_popup_users');
+    if (adminFallbackSearch.users.length) {
+      return { ok: true, users: adminFallbackSearch.users };
+    }
+
+    const queryUuid = normalizeUuid(normalizedNoAt || normalizedQuery);
+    if (!queryUuid || queryUuid === user.id) {
+      return { ok: true, users: [] };
+    }
+
+    const fallback = await supabase
+      .from('profiles')
+      .select('id,display_name,username')
+      .eq('id', queryUuid)
+      .maybeSingle();
+
+    if (fallback.error || !fallback.data) {
+      return { ok: true, users: [] };
+    }
+
+    return {
+      ok: true,
+      users: [
+        {
+          id: `${fallback.data.id ?? ''}`.trim(),
+          displayName: `${fallback.data.display_name ?? ''}`.trim(),
+          username: `${fallback.data.username ?? ''}`.trim(),
+          email: '',
+        },
+      ].filter((row) => !!row.id),
+    };
+
   }
 
   async function sendPopupToUser(input: {
@@ -1228,6 +1436,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     favoriteNewsIds,
     favoriteListingIds,
     signIn,
+    signInWithGoogle,
     signUp,
     resendSignupConfirmation,
     signOut,

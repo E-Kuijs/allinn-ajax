@@ -1,9 +1,8 @@
 {
   "expo": {
-    "owner": "all-inn-media-ajax",
     "name": "ALL-INN AJAX",
     "slug": "all-inn-ajax",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/logo-ajax-square.png",
     "userInterfaceStyle": "light",
@@ -16,7 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.allinmedia.allinajax",
-      "buildNumber": "13",
+      "buildNumber": "9",
       "infoPlist": {
         "NSSpeechRecognitionUsageDescription": "Allow $(PRODUCT_NAME) to use speech recognition.",
         "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to use the microphone."
@@ -29,17 +28,13 @@
       },
       "softwareKeyboardLayoutMode": "pan",
       "package": "com.allinmedia.allinajax",
+      "versionCode": 9,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
-      ],
-      "versionCode": 8
+      ]
     },
     "web": {
       "bundler": "metro"

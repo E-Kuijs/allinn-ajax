@@ -26,8 +26,6 @@ Door mijn passie voor de club en omdat ik graag mijn steentje wil bijdragen, heb
 
 De app zit vol met functies voor supporters. Neem gerust een kijkje en ontdek wat er allemaal mogelijk is.
 
-Met de premium accounts wil ik een bijdrage doneren aan de F-Side, zodat we kunnen blijven genieten van de geweldige sfeeracties en tifo's.
-
 Heb je een goed idee of mis je nog een functie? Laat het mij weten via e-mail. De beste ideeen worden, indien mogelijk, toegevoegd aan de app.
 
 Misschien zien we elkaar bij een volgende wedstrijd.
@@ -36,6 +34,17 @@ WZAWZDB.
 
 Edwin en Patricia Kuijs`;
 const DEFAULT_LEFT_NOTICE_TEXT = '';
+const LEGACY_FSIDE_LINE =
+  "Met de premium accounts wil ik een bijdrage doneren aan de F-Side, zodat we kunnen blijven genieten van de geweldige sfeeracties en tifo's.";
+
+function sanitizeWelcomeText(value: string) {
+  return value
+    .replaceAll(`\n\n${LEGACY_FSIDE_LINE}`, '')
+    .replaceAll(`${LEGACY_FSIDE_LINE}\n\n`, '')
+    .replaceAll(LEGACY_FSIDE_LINE, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 export default function WelcomeTabScreen() {
   const { user, content } = useAppContext();
@@ -58,7 +67,7 @@ export default function WelcomeTabScreen() {
     ]);
 
     if (storedText?.trim()) {
-      setWelcomeText(storedText);
+      setWelcomeText(sanitizeWelcomeText(storedText));
     } else {
       setWelcomeText(DEFAULT_WELCOME_TEXT);
     }

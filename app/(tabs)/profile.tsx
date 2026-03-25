@@ -93,6 +93,7 @@ const stylesGlobal = StyleSheet.create({
     fontWeight: '600',
   },
 });
+const FIXED_AJAX_MONTHLY_PRICE = 1.49;
 
 function toEur(amount: number): string {
   return `EUR ${amount.toFixed(2).replace('.', ',')}`;
@@ -119,7 +120,6 @@ export default function ProfileScreen() {
   const {
     user,
     profile,
-    settings,
     saveProfile,
     signOut,
     avatarUri,
@@ -149,7 +149,7 @@ export default function ProfileScreen() {
     xUrl: '',
       youtubePersonalUrl: '',
   });
-  const [monthlyPlanPrice, setMonthlyPlanPrice] = useState(() => settings.monthlyPriceEur);
+  const monthlyPlanPrice = FIXED_AJAX_MONTHLY_PRICE;
 
   useEffect(() => {
     setDisplayName(profile?.displayName ?? 'Ajax Fan');
@@ -164,12 +164,6 @@ export default function ProfileScreen() {
     };
     void loadPushPreference();
   }, []);
-
-  const fallbackMonthlyPlanPrice = useMemo(() => settings.monthlyPriceEur, [settings.monthlyPriceEur]);
-
-  useEffect(() => {
-    setMonthlyPlanPrice(fallbackMonthlyPlanPrice);
-  }, [fallbackMonthlyPlanPrice]);
 
   useEffect(() => {
     setSocialDraft({
@@ -192,27 +186,6 @@ export default function ProfileScreen() {
     socialLinks.xUrl,
     socialLinks.youtubePersonalUrl,
   ]);
-
-  useEffect(() => {
-    let active = true;
-    const loadPlanPrices = async () => {
-      const res = await supabase
-        .from('subscription_plans')
-        .select('code,price_eur')
-        .eq('code', 'PREMIUM_MONTH')
-        .maybeSingle();
-
-      if (!active || res.error || !res.data) return;
-
-      const price = Number((res.data as { price_eur: number | null }).price_eur ?? 0);
-      if (!Number.isFinite(price) || price <= 0) return;
-      setMonthlyPlanPrice(price);
-    };
-    void loadPlanPrices();
-    return () => {
-      active = false;
-    };
-  }, [fallbackMonthlyPlanPrice]);
 
   const updateSocialField = (
     key:

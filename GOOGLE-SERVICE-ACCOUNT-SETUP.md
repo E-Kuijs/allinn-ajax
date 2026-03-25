@@ -17,7 +17,7 @@ Op dit moment stopt `eas submit` met:
 - track: `production`
 - releaseStatus: `draft`
 - AAB klaar:
-  `https://expo.dev/artifacts/eas/8mqMDrLsPU6xajQYRVtNuk.aab`
+  `https://expo.dev/artifacts/eas/7dabtdytaGYoFfdwmjeqTG.aab`
 
 ## Belangrijke Google-regel
 
@@ -97,3 +97,5 @@ Zodra de key gekoppeld is, kan ik:
   `https://docs.expo.dev/submit/introduction/`
 - Android Developers over service accounts en API access:
   `https://developer.android.com/games/pgs/publishing/publishing-start`
+
+

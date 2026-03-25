@@ -31,7 +31,7 @@ function normalizeLabel(label?: Props['label']) {
 function getRoleLine(label: Props['label']) {
   switch (label) {
     case 'VIP DEVELOPER':
-      return 'DEVELOPER';
+      return 'BUILDER';
     case 'VIP FAMILY':
       return 'SPECIAL MEMBER';
     case 'VIP SPECIAL MEMBER':
@@ -99,12 +99,11 @@ export function MembershipBadge({
   }, [starPulse, starsColor]);
 
   const animatedStarStyle = {
-    transform: [{ scale: starsColor === 'gold' ? starPulse : 1 }],
     opacity:
       starsColor === 'gold'
         ? starPulse.interpolate({
             inputRange: [0.96, 1.08],
-            outputRange: [0.86, 1],
+            outputRange: [0.9, 1],
             extrapolate: 'clamp',
           })
         : 1,
@@ -181,29 +180,35 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 9,
     paddingVertical: 5,
+    overflow: 'visible',
   },
   wrapBanner: {
-    maxWidth: 268,
-    minWidth: 214,
+    maxWidth: 250,
+    minWidth: 196,
     backgroundColor: '#0E0E0E',
     borderWidth: 1.8,
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     alignItems: 'stretch',
     justifyContent: 'center',
+    overflow: 'visible',
   },
   stars: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 0.6,
+    lineHeight: 19,
+    includeFontPadding: false,
   },
   starsCard: {},
   starsCardGold: {
-    fontSize: 22,
+    fontSize: 18,
+    lineHeight: 20,
+    letterSpacing: 0.5,
     textShadowColor: '#FFE49A',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
+    textShadowRadius: 6,
   },
   starsBanner: {
     fontSize: 24,
@@ -246,14 +251,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
-    minHeight: 42,
+    gap: 8,
+    minHeight: 38,
   },
   bannerVip: {
-    minWidth: 56,
-    fontSize: 26,
+    minWidth: 52,
+    fontSize: 24,
     fontWeight: '900',
-    lineHeight: 28,
+    lineHeight: 26,
     letterSpacing: 0.4,
     textAlign: 'left',
   },
@@ -261,30 +266,32 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
   bannerRole: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '900',
-    lineHeight: 19,
+    lineHeight: 17,
     letterSpacing: 0.3,
     textAlign: 'center',
     marginBottom: 1,
   },
   bannerStarsCompact: {
-    fontSize: 24,
+    fontSize: 17,
     fontWeight: '900',
-    letterSpacing: 0.4,
-    lineHeight: 26,
-    minWidth: 74,
+    letterSpacing: 0.2,
+    lineHeight: 19,
+    minWidth: 64,
     textAlign: 'center',
     flexShrink: 0,
+    includeFontPadding: false,
   },
   bannerStarsGold: {
-    fontSize: 29,
-    lineHeight: 31,
+    fontSize: 19,
+    lineHeight: 21,
     textShadowColor: '#FFE49A',
     textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 12,
+    textShadowRadius: 6,
   },
   bannerBrand: {},
   bannerMotto: {},

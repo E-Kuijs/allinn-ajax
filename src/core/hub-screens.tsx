@@ -1,4 +1,5 @@
-import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Redirect, router } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
@@ -64,6 +65,7 @@ type HubAdminScreenContentProps = {
 type ManagedHubApp = HubAppLink & {
   categoryTitle: string;
 };
+type HubStatusFilter = 'all' | 'live' | 'building' | 'planned';
 
 export async function openHubAppLink(
   app?: HubAppLink,
@@ -118,6 +120,12 @@ function getHubDownloadActionLabel(app: HubAppLink) {
   return 'Download';
 }
 
+function getHubStatusLabel(status: HubAppLink['status']) {
+  if (status === 'live') return 'LIVE';
+  if (status === 'building') return 'BOUW';
+  return 'PLANNING';
+}
+
 export function HubHomeScreenContent({
   categories,
   isDeveloper,
@@ -130,14 +138,39 @@ export function HubHomeScreenContent({
   statusEyebrow = 'STATUS',
   statusTitle = 'Wat speelt er nu',
 }: HubHomeScreenContentProps) {
-  const allApps = categories.flatMap((category) =>
-    category.apps.map((app) => ({
-      ...app,
-      categoryId: category.id,
-      categoryTitle: category.title,
-      categoryAccent: category.accent,
-    }))
+  const [appQuery, setAppQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<HubStatusFilter>('all');
+
+  const allApps = useMemo(
+    () =>
+      categories.flatMap((category) =>
+        category.apps.map((app) => ({
+          ...app,
+          categoryId: category.id,
+          categoryTitle: category.title,
+          categoryAccent: category.accent,
+        }))
+      ),
+    [categories]
   );
+
+  const filteredApps = useMemo(() => {
+    const query = appQuery.trim().toLowerCase();
+    return allApps
+      .filter((app) => (statusFilter === 'all' ? true : app.status === statusFilter))
+      .filter((app) => {
+        if (!query) return true;
+        const hay = `${app.name} ${app.subtitle} ${app.categoryTitle} ${app.id}`.toLowerCase();
+        return hay.includes(query);
+      });
+  }, [allApps, appQuery, statusFilter]);
+
+  const statusOptions: { key: HubStatusFilter; label: string }[] = [
+    { key: 'all', label: 'Alles' },
+    { key: 'live', label: 'Live' },
+    { key: 'building', label: 'Building' },
+    { key: 'planned', label: 'Planned' },
+  ];
 
   return (
     <ScrollView style={homeStyles.container} contentContainerStyle={homeStyles.content}>
@@ -145,6 +178,92 @@ export function HubHomeScreenContent({
         <Text style={homeStyles.heroEyebrow}>ALL-INN HUB</Text>
         <Text style={homeStyles.heroTitle}>{heroTitle}</Text>
         <Text style={homeStyles.heroBody}>{heroBody}</Text>
+      </View>
+
+      <View style={homeStyles.radarSection}>
+        <View style={homeStyles.radarHeader}>
+          <Text style={homeStyles.radarEyebrow}>{isDeveloper ? 'ROLLOUT RADAR' : 'APP RADAR'}</Text>
+          <Text style={homeStyles.radarTitle}>
+            {isDeveloper ? 'Zoek snel door je app-portfolio' : 'Ontdek apps op naam of status'}
+          </Text>
+          <Text style={homeStyles.radarBody}>
+            Filter op status en zoek op appnaam of categorie om sneller te openen of door te sturen.
+          </Text>
+        </View>
+
+        <TextInput
+          style={homeStyles.radarSearchInput}
+          value={appQuery}
+          onChangeText={setAppQuery}
+          placeholder="Zoek bijvoorbeeld: Ajax, Finance of Sports"
+          placeholderTextColor="#9C9C9C"
+          maxLength={60}
+        />
+
+        <View style={homeStyles.radarFilterRow}>
+          {statusOptions.map((option) => {
+            const active = statusFilter === option.key;
+            return (
+              <TouchableOpacity
+                key={`hub-status-${option.key}`}
+                style={[homeStyles.radarFilterBtn, active ? homeStyles.radarFilterBtnActive : null]}
+                onPress={() => setStatusFilter(option.key)}
+              >
+                <Text style={[homeStyles.radarFilterText, active ? homeStyles.radarFilterTextActive : null]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {filteredApps.length ? (
+          <View style={homeStyles.radarList}>
+            {filteredApps.map((app) => {
+              const statusStyle =
+                app.status === 'live'
+                  ? homeStyles.radarStatusLive
+                  : app.status === 'building'
+                    ? homeStyles.radarStatusBuilding
+                    : homeStyles.radarStatusPlanned;
+
+              return (
+                <View key={`hub-radar-${app.categoryId}-${app.id}`} style={homeStyles.radarCard}>
+                  <View style={homeStyles.radarMetaRow}>
+                    <View style={[homeStyles.radarCategoryBadge, { backgroundColor: app.categoryAccent }]}>
+                      <Text style={homeStyles.radarCategoryBadgeText}>{app.categoryTitle}</Text>
+                    </View>
+                    <View style={[homeStyles.radarStatusBadge, statusStyle]}>
+                      <Text style={homeStyles.radarStatusText}>{getHubStatusLabel(app.status)}</Text>
+                    </View>
+                  </View>
+
+                  <Text style={homeStyles.radarCardTitle}>{app.name}</Text>
+                  <Text style={homeStyles.radarCardSubtitle}>{app.subtitle}</Text>
+
+                  <View style={homeStyles.radarActions}>
+                    <TouchableOpacity
+                      style={homeStyles.radarPrimaryBtn}
+                      onPress={() => void openHubAppLink(app, app.deepLink, app.storeUrl)}
+                    >
+                      <Text style={homeStyles.radarPrimaryBtnText}>Open app</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={homeStyles.radarSecondaryBtn}
+                      onPress={() => void openHubAppLink(app, undefined, app.storeUrl)}
+                    >
+                      <Text style={homeStyles.radarSecondaryBtnText}>{getHubDownloadActionLabel(app)}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={homeStyles.radarEmptyBlock}>
+            <Text style={homeStyles.radarEmptyText}>Geen apps gevonden voor deze combinatie van zoekterm en filter.</Text>
+          </View>
+        )}
       </View>
 
       {!isDeveloper && allApps.length ? (
@@ -496,6 +615,183 @@ const homeStyles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 13,
     lineHeight: 20,
+  },
+  radarSection: {
+    borderRadius: 16,
+    borderWidth: 1.3,
+    borderColor: '#355B9A',
+    backgroundColor: '#0B121F',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  radarHeader: {
+    gap: 4,
+  },
+  radarEyebrow: {
+    color: '#9FD1FF',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  radarTitle: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  radarBody: {
+    color: '#D2E5FF',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  radarSearchInput: {
+    borderRadius: 10,
+    borderWidth: 1.2,
+    borderColor: '#5A84C9',
+    backgroundColor: '#0E1A2E',
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  radarFilterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  radarFilterBtn: {
+    borderRadius: 999,
+    borderWidth: 1.2,
+    borderColor: '#5A84C9',
+    backgroundColor: '#11203A',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  radarFilterBtnActive: {
+    borderColor: '#9FD1FF',
+    backgroundColor: '#2C4A79',
+  },
+  radarFilterText: {
+    color: '#CFE3FF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  radarFilterTextActive: {
+    color: '#FFFFFF',
+  },
+  radarList: {
+    gap: 8,
+  },
+  radarCard: {
+    borderRadius: 12,
+    borderWidth: 1.2,
+    borderColor: '#2E3E5E',
+    backgroundColor: '#111B2E',
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  radarMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  radarCategoryBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  radarCategoryBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.3,
+  },
+  radarStatusBadge: {
+    borderRadius: 999,
+    borderWidth: 1.2,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  radarStatusLive: {
+    borderColor: '#5CD66F',
+    backgroundColor: '#14301A',
+  },
+  radarStatusBuilding: {
+    borderColor: '#FFB84A',
+    backgroundColor: '#3A2909',
+  },
+  radarStatusPlanned: {
+    borderColor: '#A2A2A2',
+    backgroundColor: '#252525',
+  },
+  radarStatusText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.4,
+  },
+  radarCardTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  radarCardSubtitle: {
+    color: '#D0DAEA',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  radarActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 2,
+  },
+  radarPrimaryBtn: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 10,
+    borderWidth: 1.2,
+    borderColor: Ajax.red,
+    backgroundColor: Ajax.red,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radarPrimaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  radarSecondaryBtn: {
+    width: 110,
+    minHeight: 38,
+    borderRadius: 10,
+    borderWidth: 1.2,
+    borderColor: '#9FD1FF',
+    backgroundColor: '#1B2A47',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radarSecondaryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  radarEmptyBlock: {
+    borderRadius: 10,
+    borderWidth: 1.2,
+    borderColor: '#3F5F95',
+    backgroundColor: '#0F1A2C',
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+  },
+  radarEmptyText: {
+    color: '#D0DAEA',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
   },
   grid: {
     gap: 10,

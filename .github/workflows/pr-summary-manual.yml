@@ -1,0 +1,114 @@
+name: PR Summary (OpenAI, Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo_owner:
+        description: "GitHub owner"
+        required: true
+        default: "E-Kuijs"
+      repo_name:
+        description: "GitHub repo name"
+        required: true
+      pr_number:
+        description: "PR number"
+        required: true
+      openai_model:
+        description: "OpenAI model"
+        required: true
+        default: "gpt-4.1-mini"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate summary and comment on PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OWNER: ${{ github.event.inputs.repo_owner }}
+          REPO: ${{ github.event.inputs.repo_name }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+          OPENAI_MODEL: ${{ github.event.inputs.openai_model }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+
+          gh = os.environ["GITHUB_TOKEN"]
+          oa = os.environ["OPENAI_API_KEY"]
+          owner = os.environ["OWNER"]
+          repo = os.environ["REPO"]
+          pr = os.environ["PR_NUMBER"]
+          model = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+
+          def http_json(url, method="GET", data=None, headers=None):
+              h = headers or {}
+              req = urllib.request.Request(url, method=method, headers=h, data=data)
+              with urllib.request.urlopen(req) as r:
+                  return r.read().decode("utf-8")
+
+          diff = http_json(
+              f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr}",
+              headers={
+                  "Authorization": f"Bearer {gh}",
+                  "Accept": "application/vnd.github.v3.diff",
+                  "User-Agent": "github-actions"
+              }
+          )
+          diff = diff[:12000]
+
+          prompt = (
+              "Maak een korte PR-samenvatting in het Nederlands met:\n"
+              "1) Wat is aangepast\n2) Risico's\n3) Testadvies\n\n"
+              f"PR diff:\n{diff}"
+          )
+
+          payload = json.dumps({
+              "model": model,
+              "max_output_tokens": 350,
+              "input": [
+                  {"role": "system", "content": "Je bent een senior reviewer. Wees concreet en kort."},
+                  {"role": "user", "content": prompt}
+              ]
+          }).encode("utf-8")
+
+          raw = http_json(
+              "https://api.openai.com/v1/responses",
+              method="POST",
+              data=payload,
+              headers={
+                  "Authorization": f"Bearer {oa}",
+                  "Content-Type": "application/json"
+              }
+          )
+          j = json.loads(raw)
+
+          text = (j.get("output_text") or "").strip()
+          if not text:
+              parts = []
+              for item in j.get("output", []):
+                  for c in item.get("content", []):
+                      t = c.get("text")
+                      if t:
+                          parts.append(t)
+              text = "\n".join(parts).strip() or "Geen samenvatting gegenereerd."
+
+          comment_body = json.dumps({"body": f"### OpenAI PR Summary (manual)\n\n{text}"}).encode("utf-8")
+
+          http_json(
+              f"https://api.github.com/repos/{owner}/{repo}/issues/{pr}/comments",
+              method="POST",
+              data=comment_body,
+              headers={
+                  "Authorization": f"Bearer {gh}",
+                  "Accept": "application/vnd.github+json",
+                  "Content-Type": "application/json",
+                  "User-Agent": "github-actions"
+              }
+          )
+          print("PR summary geplaatst.")
+          PY

@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: hashFiles('package.json') != ''
         with:
           node-version: "20"
@@ -50,3 +50,4 @@ jobs:
         run: |
           npm run build:web --if-present
           npm run build --if-present
+

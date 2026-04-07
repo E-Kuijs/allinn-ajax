@@ -1,0 +1,75 @@
+name: Preview Deploy (Netlify)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        if: hashFiles('package.json') != ''
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        if: hashFiles('package-lock.json') != ''
+        run: npm ci
+
+      - name: Install dependencies (fallback)
+        if: hashFiles('package-lock.json') == '' && hashFiles('package.json') != ''
+        run: npm install
+
+      - name: Build (if package.json exists)
+        if: hashFiles('package.json') != ''
+        run: |
+          npm run build:web --if-present
+          npm run build --if-present
+
+      - name: Determine publish dir
+        run: |
+          if [ -d "www" ]; then
+            echo "PUBLISH_DIR=www" >> $GITHUB_ENV
+          elif [ -d "build" ]; then
+            echo "PUBLISH_DIR=build" >> $GITHUB_ENV
+          elif [ -d "dist" ]; then
+            echo "PUBLISH_DIR=dist" >> $GITHUB_ENV
+          elif [ -d "public" ]; then
+            echo "PUBLISH_DIR=public" >> $GITHUB_ENV
+          else
+            echo "PUBLISH_DIR=." >> $GITHUB_ENV
+          fi
+
+      - name: Deploy preview to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          npx netlify-cli deploy \
+            --auth "$NETLIFY_AUTH_TOKEN" \
+            --site "$NETLIFY_SITE_ID" \
+            --dir "$PUBLISH_DIR" \
+            --message "PR preview ${GITHUB_SHA}" \
+            --json > netlify-deploy.json
+
+      - name: Extract preview URL
+        run: |
+          node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('netlify-deploy.json','utf8'));console.log((j.deploy_url||j.url||'').trim());" > preview_url.txt
+          echo "PREVIEW_URL=$(cat preview_url.txt)" >> $GITHUB_ENV
+
+      - name: Comment on PR with preview URL
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --body "Preview URL: $PREVIEW_URL"

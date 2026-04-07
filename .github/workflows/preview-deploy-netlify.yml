@@ -67,7 +67,6 @@ jobs:
         run: |
           node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('netlify-deploy.json','utf8'));console.log((j.deploy_url||j.url||'').trim());" > preview_url.txt
           echo "PREVIEW_URL=$(cat preview_url.txt)" >> $GITHUB_ENV
-
       - name: Comment on PR with preview URL
         if: github.event_name == 'pull_request'
         env:

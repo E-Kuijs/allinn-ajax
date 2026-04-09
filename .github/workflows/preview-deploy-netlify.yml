@@ -1,17 +1,13 @@
 name: Preview Deploy (Netlify)
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   preview:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     steps:
@@ -60,24 +56,11 @@ jobs:
             --auth "$NETLIFY_AUTH_TOKEN" \
             --site "$NETLIFY_SITE_ID" \
             --dir "$PUBLISH_DIR" \
-            --message "PR preview ${GITHUB_SHA}" \
+            --message "Manual preview ${GITHUB_SHA}" \
             --json > netlify-deploy.json
 
       - name: Extract preview URL
         run: |
           node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('netlify-deploy.json','utf8'));console.log((j.deploy_url||j.url||'').trim());" > preview_url.txt
           echo "PREVIEW_URL=$(cat preview_url.txt)" >> $GITHUB_ENV
-
-      - name: Comment on PR with preview URL
-        if: github.event_name == 'pull_request'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          preview_url="$PREVIEW_URL"
-          api_url="https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments"
-          curl -s \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "$api_url" \
-            -d "{\"body\":\"Preview URL: $preview_url\"}"
-
+          echo "Preview URL: $(cat preview_url.txt)"

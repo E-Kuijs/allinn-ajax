@@ -40,11 +40,11 @@ export default function AccountScreen() {
   };
 
   const openTerms = async () => {
-    await Linking.openURL('https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/terms.html');
+    await Linking.openURL('https://e-kuijs.github.io/all-inn-legal/terms.html');
   };
 
   const openPrivacy = async () => {
-    await Linking.openURL('https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/privacy.html');
+    await Linking.openURL('https://e-kuijs.github.io/all-inn-legal/privacy.html');
   };
 
   const openCommunityRules = () => {
@@ -55,7 +55,7 @@ export default function AccountScreen() {
   };
 
   const requestDeleteAccount = async () => {
-    await Linking.openURL('https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/delete-account.html');
+    await Linking.openURL('https://e-kuijs.github.io/all-inn-legal/delete.html');
   };
 
   return (
@@ -215,3 +215,4 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: { color: '#fff', fontWeight: '800' },
 });
+

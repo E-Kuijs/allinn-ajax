@@ -24,9 +24,9 @@ Belangrijke vaste links en projectgegevens voor `ALL-INN AJAX`.
 
 ## Legal / account
 
-- Terms: `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/terms.html`
-- Privacy: `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/privacy.html`
-- Delete account: `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/delete-account.html`
+- Terms: `https://e-kuijs.github.io/all-inn-legal/terms.html`
+- Privacy: `https://e-kuijs.github.io/all-inn-legal/privacy.html`
+- Delete account: `https://e-kuijs.github.io/all-inn-legal/delete.html`
 
 ## Store / hub
 
@@ -52,3 +52,4 @@ Deze waarden zet ik bewust niet in dit backup-bestand:
 - privé API keys
 
 Die horen beter in een password manager of beveiligde notitie.
+

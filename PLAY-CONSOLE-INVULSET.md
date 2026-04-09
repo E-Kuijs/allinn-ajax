@@ -15,16 +15,16 @@ Laatst bijgewerkt: 2026-03-16
 Gebruik voorlopig deze werkende links:
 
 - Website:
-  `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/privacy.html`
+  `https://e-kuijs.github.io/all-inn-legal/privacy.html`
 
 - Privacybeleid:
-  `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/privacy.html`
+  `https://e-kuijs.github.io/all-inn-legal/privacy.html`
 
 - Account verwijderen:
-  `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/delete-account.html`
+  `https://e-kuijs.github.io/all-inn-legal/delete.html`
 
 - Voorwaarden / terms:
-  `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/terms.html`
+  `https://e-kuijs.github.io/all-inn-legal/terms.html`
 
 ## Korte beschrijving over ontwikkelaar / apps
 
@@ -60,3 +60,4 @@ Aanbevolen tekst:
 - De oude GitHub Pages legal links werken nu niet.
 - Gebruik daarom voorlopig de `raw.githubusercontent.com` links hierboven.
 - Later kunnen we dit weer vervangen door een nette website- of Pages-oplossing.
+

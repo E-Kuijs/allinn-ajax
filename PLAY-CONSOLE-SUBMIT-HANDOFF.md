@@ -15,9 +15,9 @@ Laatst bijgewerkt: 2026-03-16
   - `track: production`
   - `releaseStatus: draft`
 - Tijdelijke werkende legal links via jsDelivr CDN:
-  - `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/privacy.html`
-  - `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/delete-account.html`
-  - `https://cdn.jsdelivr.net/gh/all-inmedia/ajax-all-in-legal@main/terms.html`
+  - `https://e-kuijs.github.io/all-inn-legal/privacy.html`
+  - `https://e-kuijs.github.io/all-inn-legal/delete.html`
+  - `https://e-kuijs.github.io/all-inn-legal/terms.html`
 
 ## Wat is getest
 
@@ -64,3 +64,4 @@ De submit-config is bewust veilig gezet:
 - draft release
 
 Dus zodra de service account key gekoppeld is, kan de upload zonder directe rollout.
+

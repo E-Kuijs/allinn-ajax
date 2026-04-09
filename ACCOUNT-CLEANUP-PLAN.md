@@ -141,7 +141,7 @@ Belangrijk verschil:
 1. `ekuijs` niet verwijderen:
    - huidige Expo/EAS projectlijn en mogelijk signing hangen hier nog aan.
 2. `all-inmedia` op GitHub nog niet verwijderen:
-   - de legal repo staat daar nog en de tijdelijke werkende links lopen via `raw.githubusercontent.com/all-inmedia/ajax-all-in-legal/...`
+   - de legal repo staat daar nog en de werkende links lopen nu via `e-kuijs.github.io/all-inn-legal/...`
 3. Oude Supabase projecten niet verwijderen zonder export / backup.
 4. Geen remote URLs aanpassen voordat de GitHub transfer echt rond is.
 
@@ -216,9 +216,9 @@ Belangrijk:
 
 - GitHub Pages op `all-inmedia.github.io` werkt op dit moment niet voor deze legal repo.
 - Tijdelijke werkende legal links zijn:
-  - `https://raw.githubusercontent.com/all-inmedia/ajax-all-in-legal/main/terms.html`
-  - `https://raw.githubusercontent.com/all-inmedia/ajax-all-in-legal/main/privacy.html`
-  - `https://raw.githubusercontent.com/all-inmedia/ajax-all-in-legal/main/delete-account.html`
+  - `https://e-kuijs.github.io/all-inn-legal/terms.html`
+  - `https://e-kuijs.github.io/all-inn-legal/privacy.html`
+  - `https://e-kuijs.github.io/all-inn-legal/delete.html`
 
 Conclusie:
 - de lokale remote loopt nog achter op de nieuwe GitHub-structuur
@@ -250,3 +250,5 @@ Maar de veilige route is:
   - https://support.google.com/googleplay/android-developer/answer/16642750
 - Codex met ChatGPT plan:
   - https://help.openai.com/en/articles/11369540-codex-in-chatgpt
+
+
